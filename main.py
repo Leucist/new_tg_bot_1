@@ -4,6 +4,7 @@ from telebot.apihelper import ApiException
 import config
 import json
 import time
+from datetime import datetime
 from telebot import types
 
 bot = telebot.TeleBot(config.TOKEN)
@@ -120,32 +121,50 @@ def chat(message):
 
 def choose_type(message, booking):
     if message.text.lower() == "очная" or message.text.lower() == "заочная":
-        red_border = {"m": [time.strftime("%m"), time.strftime("%B")], "d": [time.strftime("%d"), time.strftime("%a")]}
-        print(red_border['d'][1])
+        red_border = {"y": time.strftime("%Y"),
+                      "m": [time.strftime("%m"), time.strftime("%B")],
+                      "d": [time.strftime("%d"), time.strftime("%a")]}
         name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
-        week_name_line = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        # week_name_line = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         second_line = []
-        days_array_0, days_array_1, days_array_2, days_array_3, days_array_4 = [], [], [], [], []
+        days_array_0, days_array_1, days_array_2, days_array_3, days_array_4, days_array_5 = [], [], [], [], [], []
+        first_day = datetime(int(red_border['y']), int(red_border['m'][0]), 1).weekday()
+        print(first_day)
+        if first_day != 0:
+            for i in range(6):
+                if i+1 != first_day:
+                    days_array_0.append(types.InlineKeyboardButton("x", callback_data="0"))
+                else:
+                    break
         for day_name in name_line:
             second_line.append(types.InlineKeyboardButton(day_name, callback_data="0"))
         for day in range(31):
-            value = 0 if day + 1 <= int(red_border["d"][0]) else day + 1
+            value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0]
             new_button = types.InlineKeyboardButton(str(day+1), callback_data=str(value))
-            if day < 7:
+            if len(days_array_0) < 7:
                 days_array_0.append(new_button)
-            elif day < 14:
+            elif len(days_array_1) < 14:
                 days_array_1.append(new_button)
-            elif day < 21:
+            elif len(days_array_2) < 21:
                 days_array_2.append(new_button)
-            elif day < 28:
+            elif len(days_array_3) < 28:
                 days_array_3.append(new_button)
-            else:
+            elif len(days_array_3) < 35:
                 days_array_4.append(new_button)
-        print(days_array_0, days_array_1, days_array_2, days_array_3)
-        inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton(red_border["m"][1], callback_data="0")],
+            else:
+                days_array_5.append(new_button)
+        i = 1
+        new_month = str(int(red_border['m'][0]) + 1)
+        if len(days_array_5) != 0:
+            while len(days_array_5) < 7:
+                days_array_5.append(types.InlineKeyboardButton(str(i), callback_data=str(i)+"."+new_month))
+                i += 1
+        inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("<", callback_data="m_back"),
+                                                       types.InlineKeyboardButton(red_border["m"][1], callback_data="0"),
+                                                       types.InlineKeyboardButton(">", callback_data="m_next")],
                                                       second_line,
                                                       days_array_0, days_array_1, days_array_2,
-                                                      days_array_3, days_array_4],
+                                                      days_array_3, days_array_4, days_array_5],
                                                      row_width=7)
 
         booking['type'] = message.text
