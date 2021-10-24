@@ -4,7 +4,8 @@ from telebot.apihelper import ApiException
 import config
 import json
 import time
-from datetime import datetime
+import calendar
+# from datetime import datetime
 from telebot import types
 
 bot = telebot.TeleBot(config.TOKEN)
@@ -128,7 +129,11 @@ def choose_type(message, booking):
         # week_name_line = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         second_line = []
         days_array_0, days_array_1, days_array_2, days_array_3, days_array_4, days_array_5 = [], [], [], [], [], []
-        first_day = datetime(int(red_border['y']), int(red_border['m'][0]), 1).weekday()
+        # first_day = datetime(int(red_border['y']), int(red_border['m'][0]), 1).weekday()
+        first_day = calendar.monthrange(int(red_border['y']), int(red_border['m'][0]))[0]
+        number_prev_month = int(red_border['m'][0]) - 1 if red_border['m'][0] != "01" else 12
+        year_prev_month = int(red_border['y']) if number_prev_month != 12 else int(red_border['y']) - 1
+        prev_month = calendar.monthrange(year_prev_month, number_prev_month)[1]
         print(first_day)
         if first_day != 0:
             for i in range(6):
@@ -154,7 +159,7 @@ def choose_type(message, booking):
             else:
                 days_array_5.append(new_button)
         i = 1
-        new_month = str(int(red_border['m'][0]) + 1)
+        new_month = str(int(red_border['m'][0]) + 1) if red_border['m'][0] != "12" else "1"
         if len(days_array_5) != 0:
             while len(days_array_5) < 7:
                 days_array_5.append(types.InlineKeyboardButton(str(i), callback_data=str(i)+"."+new_month))
