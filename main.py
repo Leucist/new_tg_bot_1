@@ -133,17 +133,16 @@ def choose_type(message, booking):
         first_day = calendar.monthrange(int(red_border['y']), int(red_border['m'][0]))[0]
         number_prev_month = int(red_border['m'][0]) - 1 if red_border['m'][0] != "01" else 12
         year_prev_month = int(red_border['y']) if number_prev_month != 12 else int(red_border['y']) - 1
-        prev_month = calendar.monthrange(year_prev_month, number_prev_month)[1]
-        print(first_day)
+        prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
         if first_day != 0:
-            for i in range(6):
-                if i+1 != first_day:
-                    days_array_0.append(types.InlineKeyboardButton("x", callback_data="0"))
-                else:
-                    break
+            numbers = range(prev_month_days, prev_month_days-8+first_day, -1).__reversed__()
+            for num in numbers:
+                days_array_0.append(types.InlineKeyboardButton(str(num), callback_data="0"))
+            del numbers
         for day_name in name_line:
             second_line.append(types.InlineKeyboardButton(day_name, callback_data="0"))
-        for day in range(31):
+        for day in range(calendar.monthrange(int(red_border["y"]), int(red_border["m"][0]))):
+            print(day)
             value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0]
             new_button = types.InlineKeyboardButton(str(day+1), callback_data=str(value))
             if len(days_array_0) < 7:
@@ -160,6 +159,7 @@ def choose_type(message, booking):
                 days_array_5.append(new_button)
         i = 1
         new_month = str(int(red_border['m'][0]) + 1) if red_border['m'][0] != "12" else "1"
+        print(days_array_5)
         if len(days_array_5) != 0:
             while len(days_array_5) < 7:
                 days_array_5.append(types.InlineKeyboardButton(str(i), callback_data=str(i)+"."+new_month))
