@@ -110,18 +110,38 @@ def chat(message):
     if message.chat.type == 'private':
         if message.text.lower() == 'привет' or message.text.lower() == 'записаться' or message.text == '/start':
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            item1 = types.KeyboardButton("Очная")
-            item2 = types.KeyboardButton("Заочная")
-            markup.add(item1, item2)
+            item1 = types.KeyboardButton("Консультация")
+            item2 = types.KeyboardButton("Тренировка")
+            item3 = types.KeyboardButton("Тейпирование")
+            # Тут бы подробнее о каждом расписать, чтобы человек понимал. Имхо.
+            markup.add(item1, item2, item3)
             booking = {}
             sent = bot.send_message(message.chat.id,
-                                    "Здравствуй, <b>{0.first_name}</b>!\nЯ бот, который поможет Вам забронировать консультацию.\nВы хотели бы выбрать очную или заочную консультацию?".format(
+                                    "Привет, <b>{0.first_name}</b>!\nЯ бот-помощник Fitandbaby. Я помогу тебе выбрать и записаться на услугу от Fitandbaby.\nДля начала, выберите услугу из предложенных".format(
                                         message.from_user), parse_mode='html', reply_markup=markup)
-            bot.register_next_step_handler(sent, choose_type, booking)
+            bot.register_next_step_handler(sent, choose_category, booking)
+
+
+def choose_category(message, booking):
+    if message.text.lower() == "консультация" or message.text.lower() == "тренировка" or message.text.lower() == "тейпирование":
+        booking['category'] = message.text
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item1 = types.KeyboardButton("Очная")
+        item2 = types.KeyboardButton("Онлайн")
+        markup.add(item1, item2)
+
+        sent = bot.send_message(message.chat.id,
+                                'Выбери тип проведения услуги "Очная" или "Заочная"', reply_markup=markup)
+        bot.register_next_step_handler(sent, choose_type, booking)
+    else:
+        sent = bot.send_message(message.chat.id,
+                                'Некорректный формат введенных данных, отправьте сообщение с одним словом "Консультация", "Тренировка" либо "Тейпирование"')
+        bot.register_next_step_handler(sent, choose_type, booking)
 
 
 def choose_type(message, booking):
-    if message.text.lower() == "очная" or message.text.lower() == "заочная":
+    if message.text.lower() == "очная" or message.text.lower() == "онлайн":
         red_border = {"y": time.strftime("%Y"),
                       "m": [time.strftime("%m"), time.strftime("%B")],
                       "d": [time.strftime("%d"), time.strftime("%a")]}
@@ -140,26 +160,24 @@ def choose_type(message, booking):
                 days_array_0.append(types.InlineKeyboardButton(str(num), callback_data="0"))
             del numbers
         for day_name in name_line:
-            second_line.append(types.InlineKeyboardButton(day_name, callback_data="0"))
-        for day in range(calendar.monthrange(int(red_border["y"]), int(red_border["m"][0]))):
-            print(day)
+            second_line.append(types.InlineKeyboardButton(day_name, callback_data="-1"))
+        for day in range(int(calendar.monthrange(int(red_border["y"]), int(red_border["m"][0]))[1])):
             value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0]
             new_button = types.InlineKeyboardButton(str(day+1), callback_data=str(value))
             if len(days_array_0) < 7:
                 days_array_0.append(new_button)
-            elif len(days_array_1) < 14:
+            elif len(days_array_1) < 7:
                 days_array_1.append(new_button)
-            elif len(days_array_2) < 21:
+            elif len(days_array_2) < 7:
                 days_array_2.append(new_button)
-            elif len(days_array_3) < 28:
+            elif len(days_array_3) < 7:
                 days_array_3.append(new_button)
-            elif len(days_array_3) < 35:
+            elif len(days_array_3) < 7:
                 days_array_4.append(new_button)
             else:
                 days_array_5.append(new_button)
         i = 1
         new_month = str(int(red_border['m'][0]) + 1) if red_border['m'][0] != "12" else "1"
-        print(days_array_5)
         if len(days_array_5) != 0:
             while len(days_array_5) < 7:
                 days_array_5.append(types.InlineKeyboardButton(str(i), callback_data=str(i)+"."+new_month))
@@ -177,7 +195,7 @@ def choose_type(message, booking):
         sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
         bot.register_next_step_handler(sent, choose_date, booking)
     else:
-        sent = bot.send_message(message.chat.id, 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Очная" либо "Заочная"')
+        sent = bot.send_message(message.chat.id, 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Очная" либо "Онлайн"')
         bot.register_next_step_handler(sent, choose_type, booking)
 
 
@@ -221,6 +239,23 @@ def confirm(message, booking):
         pass
     else:
         pass
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def date_callback_handler(call):
+    if call.data != "0":
+        print(call.data)
+    elif call.data == "-1":
+        pass
+    elif call.data == "m_back":
+        bot.edit_message_reply_markup()
+    elif call.data == "m_next":
+    else:
+        bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text='Выберите день не из тех, что прошли или сегодня :Р')
+
+
+def create_calendar():
+
 
 
 def black_list_handler(message, direction):
