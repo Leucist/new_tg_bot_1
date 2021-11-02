@@ -109,58 +109,67 @@ def admin(message):
 
 def create_calendar(month_diff=0):
     red_border = {"y": time.strftime("%Y"),
-                  "m": [time.strftime("%m"), time.strftime("%B")],
+                  "m": time.strftime("%m"),
                   "d": [time.strftime("%d"), time.strftime("%a")]}
+    months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+    keyboard = [[types.InlineKeyboardButton("<", callback_data="m_back"),
+                 types.InlineKeyboardButton(months[int(red_border["m"][0]) + month_diff], callback_data="-1"),
+                 types.InlineKeyboardButton(">", callback_data="m_next")]]
     name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
-    second_line = []
-    days_array_0, days_array_1, days_array_2, days_array_3, days_array_4, days_array_5 = [], [], [], [], [], []
-    first_day = calendar.monthrange(int(red_border['y']), int(red_border['m'][0]))[0]
-    number_prev_month = int(red_border['m'][0]) - 1 if red_border['m'][0] != "01" else 12
-    year_prev_month = int(red_border['y']) if number_prev_month != 12 else int(red_border['y']) - 1
-    prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
+    second_line, keyboard_row = [], []
     for day_name in name_line:
         second_line.append(types.InlineKeyboardButton(day_name, callback_data="-1"))
+    keyboard.append(second_line)
+
+    # INT
+    month = int(red_border["m"]) + month_diff
+    year = int(red_border["y"]) + 1 if month > 12 else int(red_border["y"])
+
+    # STR
+    new_month = str(month + 1) if month != 12 else "1"
+    new_year = str(year + 1) if new_month == "1" else str(year)
+
+    first_day = calendar.monthrange(year, month)[0]
+    number_prev_month = month - 1 if month != 1 else 12
+    year_prev_month = year if number_prev_month != 12 else year - 1
+    prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
+
     if first_day != 0:
         numbers = range(prev_month_days, prev_month_days - 8 + first_day, -1).__reversed__()
         for num in numbers:
-            days_array_0.append(types.InlineKeyboardButton(str(num), callback_data="0"))
+            keyboard_row.append(types.InlineKeyboardButton(str(num), callback_data="0"))
         del numbers
-    for day in range(int(calendar.monthrange(int(red_border["y"]), int(red_border["m"][0]))[1])):
+
+    days = int(calendar.monthrange(year, month))
+    for day in range(days):
         value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0] + "." + \
                                                                red_border["y"]
-        new_button = types.InlineKeyboardButton(str(day + 1), callback_data=str(value))
+        color_circle = "🟢"
+        # color_circle = "🟢" if ... else "🔴🟠🔴🔴🔴🔴"
+        new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
         # new_button = types.InlineKeyboardButton("🟢 " + str(day + 1), callback_data=str(value))
-        
-        if len(days_array_0) < 7:
-            days_array_0.append(new_button)
-        elif len(days_array_1) < 7:
-            days_array_1.append(new_button)
-        elif len(days_array_2) < 7:
-            days_array_2.append(new_button)
-        elif len(days_array_3) < 7:
-            days_array_3.append(new_button)
-        elif len(days_array_3) < 7:
-            days_array_4.append(new_button)
-        else:
-            days_array_5.append(new_button)
+        keyboard_row.append(new_button)
+        if len(keyboard_row) == 7:
+            keyboard.append(keyboard_row)
+            keyboard_row = []
     i = 1
-    new_month = str(int(red_border['m'][0]) + 1) if red_border['m'][0] != "12" else "1"
-    new_year = str(int(red_border['y']) + 1) if new_month == "1" else red_border['y']
-    if len(days_array_5) != 0:
-        while len(days_array_5) < 7:
-            days_array_5.append(
+    if len(keyboard_row) != 0:
+        while len(keyboard_row) < 7:
+            keyboard_row.append(
                 types.InlineKeyboardButton(str(i), callback_data=str(i) + "." + new_month + "." + new_year))
             i += 1
-    if month_diff == 0:
-        month = red_border["m"][1]
+        keyboard.append(keyboard_row)
+    # if month_diff == 0:
+    #     month = red_border["m"][1]
     # название месяца изменяется + -
-    inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("<", callback_data="m_back"),
-                                                   types.InlineKeyboardButton(month, callback_data="-1"),
-                                                   types.InlineKeyboardButton(">", callback_data="m_next")],
-                                                  second_line,
-                                                  days_array_0, days_array_1, days_array_2,
-                                                  days_array_3, days_array_4, days_array_5],
-                                                 row_width=7)
+    inline_keyboard = types.InlineKeyboardMarkup(keyboard)
+    # inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("<", callback_data="m_back"),
+    #                                                types.InlineKeyboardButton(month, callback_data="-1"),
+    #                                                types.InlineKeyboardButton(">", callback_data="m_next")],
+    #                                               second_line,
+    #                                               days_array_0, days_array_1, days_array_2,
+    #                                               days_array_3, days_array_4, days_array_5],
+    #                                              row_width=7)
     return inline_keyboard
 
 
