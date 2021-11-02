@@ -39,69 +39,129 @@ def admin(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item = types.KeyboardButton("Записаться")
         markup.add(item)
-        bot.send_message(message.chat.id, "У Вас недостаточно прав для использования этой функции.", reply_markup=markup)
-
-
-def admin_after(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item = types.KeyboardButton("Записаться")
-    markup.add(item)
-    if message.from_user.id == admin_id:
-        if message.text == "Рассылка":
-            sent = bot.send_message(message.chat.id, "Какое сообщение Вы хотите разослать?",
-                                    reply_markup=types.ReplyKeyboardRemove())
-            bot.register_next_step_handler(sent, mailing)
-        elif message.text == 'Черный список':
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            for function in black_list_functions:
-                item = types.KeyboardButton(function)
-                markup.add(item)
-            sent = bot.send_message(message.chat.id, "Что бы Вы хотели сделать?", reply_markup=markup)
-            bot.register_next_step_handler(sent, admin_after)
-        elif message.text == black_list_functions[0]:
-            sent = bot.send_message(message.chat.id,
-                                    "Введите данные пользователя, которого Вы хотите добавить в черный список: ",
-                                    reply_markup=types.ReplyKeyboardRemove())
-            bot.register_next_step_handler(sent, black_list_handler, 0)
-        elif message.text == black_list_functions[1]:
-            black_list_handler(message, 1)
-        elif message.text == black_list_functions[2]:
-            black_list_handler(message, 2)
-        elif message.text == 'Просмотреть Базу Данных':
-            show_database()
-        elif message.text == 'Отправить сообщение-вопрос':
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            item1 = types.KeyboardButton("Всем")
-            item2 = types.KeyboardButton("Выбрать пользователя")
-            markup.add(item1, item2)
-            sent = bot.send_message(message.chat.id,
-                                    "Разослать опрос всем пользователям или выбрать конкретного пользователя?",
-                                    reply_markup=markup)
-            bot.register_next_step_handler(sent, admin_after)
-        elif message.text.lower() == 'всем':
-            sent = bot.send_message(message.chat.id, "Опрос на какую тему Вы хотите провести?",
-                                    reply_markup=types.ReplyKeyboardRemove())
-            bot.register_next_step_handler(sent, mailing, arguments=True)
-        elif message.text == 'Выбрать пользователя':
-            new_message = ""
-            with open("user_base.json", "r", encoding="UTF-8") as database:
-                data = json.loads(database.read())
-                for s_user in data:
-                    new_message += "Имя: " + s_user['first_name'] + ", id: " + str(s_user) + ";\n"
-            bot.send_message(message.chat.id, new_message, reply_markup=types.ReplyKeyboardRemove())
-            sent = bot.send_message(message.chat.id, "Выберите желаемого пользователя и отправьте его id",
-                                    reply_markup=types.ReplyKeyboardRemove())
-            bot.register_next_step_handler(sent, q_user)
-        elif message.text == "Назад ➤":
-            bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-    else:
         bot.send_message(message.chat.id, "У Вас недостаточно прав для использования этой функции.",
                          reply_markup=markup)
+
+
+# admin_after
+
+# def admin_after(message):
+#     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#     item = types.KeyboardButton("Записаться")
+#     markup.add(item)
+#     if message.from_user.id == admin_id:
+#         if message.text == "Рассылка":
+#             sent = bot.send_message(message.chat.id, "Какое сообщение Вы хотите разослать?",
+#                                     reply_markup=types.ReplyKeyboardRemove())
+#             bot.register_next_step_handler(sent, mailing)
+#         elif message.text == 'Черный список':
+#             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#             for function in black_list_functions:
+#                 item = types.KeyboardButton(function)
+#                 markup.add(item)
+#             sent = bot.send_message(message.chat.id, "Что бы Вы хотели сделать?", reply_markup=markup)
+#             bot.register_next_step_handler(sent, admin_after)
+#         elif message.text == black_list_functions[0]:
+#             sent = bot.send_message(message.chat.id,
+#                                     "Введите данные пользователя, которого Вы хотите добавить в черный список: ",
+#                                     reply_markup=types.ReplyKeyboardRemove())
+#             bot.register_next_step_handler(sent, black_list_handler, 0)
+#         elif message.text == black_list_functions[1]:
+#             black_list_handler(message, 1)
+#         elif message.text == black_list_functions[2]:
+#             black_list_handler(message, 2)
+#         elif message.text == 'Просмотреть Базу Данных':
+#             show_database()
+#         elif message.text == 'Отправить сообщение-вопрос':
+#             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#             item1 = types.KeyboardButton("Всем")
+#             item2 = types.KeyboardButton("Выбрать пользователя")
+#             markup.add(item1, item2)
+#             sent = bot.send_message(message.chat.id,
+#                                     "Разослать опрос всем пользователям или выбрать конкретного пользователя?",
+#                                     reply_markup=markup)
+#             bot.register_next_step_handler(sent, admin_after)
+#         elif message.text.lower() == 'всем':
+#             sent = bot.send_message(message.chat.id, "Опрос на какую тему Вы хотите провести?",
+#                                     reply_markup=types.ReplyKeyboardRemove())
+#             bot.register_next_step_handler(sent, mailing, arguments=True)
+#         elif message.text == 'Выбрать пользователя':
+#             new_message = ""
+#             with open("user_base.json", "r", encoding="UTF-8") as database:
+#                 data = json.loads(database.read())
+#                 for s_user in data:
+#                     new_message += "Имя: " + s_user['first_name'] + ", id: " + str(s_user) + ";\n"
+#             bot.send_message(message.chat.id, new_message, reply_markup=types.ReplyKeyboardRemove())
+#             sent = bot.send_message(message.chat.id, "Выберите желаемого пользователя и отправьте его id",
+#                                     reply_markup=types.ReplyKeyboardRemove())
+#             bot.register_next_step_handler(sent, q_user)
+#         elif message.text == "Назад ➤":
+#             bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+#     else:
+#         bot.send_message(message.chat.id, "У Вас недостаточно прав для использования этой функции.",
+#                          reply_markup=markup)
 
 
 # @bot.message_handler(commands=['start'], func=lambda message: message.chat.id not in black_id)
 # def start(message):
 #     chat(message)
+
+
+def create_calendar(month_diff=0):
+    red_border = {"y": time.strftime("%Y"),
+                  "m": [time.strftime("%m"), time.strftime("%B")],
+                  "d": [time.strftime("%d"), time.strftime("%a")]}
+    name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
+    second_line = []
+    days_array_0, days_array_1, days_array_2, days_array_3, days_array_4, days_array_5 = [], [], [], [], [], []
+    first_day = calendar.monthrange(int(red_border['y']), int(red_border['m'][0]))[0]
+    number_prev_month = int(red_border['m'][0]) - 1 if red_border['m'][0] != "01" else 12
+    year_prev_month = int(red_border['y']) if number_prev_month != 12 else int(red_border['y']) - 1
+    prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
+    for day_name in name_line:
+        second_line.append(types.InlineKeyboardButton(day_name, callback_data="-1"))
+    if first_day != 0:
+        numbers = range(prev_month_days, prev_month_days - 8 + first_day, -1).__reversed__()
+        for num in numbers:
+            days_array_0.append(types.InlineKeyboardButton(str(num), callback_data="0"))
+        del numbers
+    for day in range(int(calendar.monthrange(int(red_border["y"]), int(red_border["m"][0]))[1])):
+        value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0] + "." + \
+                                                               red_border["y"]
+        new_button = types.InlineKeyboardButton(str(day + 1), callback_data=str(value))
+        # new_button = types.InlineKeyboardButton("🟢 " + str(day + 1), callback_data=str(value))
+        
+        if len(days_array_0) < 7:
+            days_array_0.append(new_button)
+        elif len(days_array_1) < 7:
+            days_array_1.append(new_button)
+        elif len(days_array_2) < 7:
+            days_array_2.append(new_button)
+        elif len(days_array_3) < 7:
+            days_array_3.append(new_button)
+        elif len(days_array_3) < 7:
+            days_array_4.append(new_button)
+        else:
+            days_array_5.append(new_button)
+    i = 1
+    new_month = str(int(red_border['m'][0]) + 1) if red_border['m'][0] != "12" else "1"
+    new_year = str(int(red_border['y']) + 1) if new_month == "1" else red_border['y']
+    if len(days_array_5) != 0:
+        while len(days_array_5) < 7:
+            days_array_5.append(
+                types.InlineKeyboardButton(str(i), callback_data=str(i) + "." + new_month + "." + new_year))
+            i += 1
+    if month_diff == 0:
+        month = red_border["m"][1]
+    # название месяца изменяется + -
+    inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("<", callback_data="m_back"),
+                                                   types.InlineKeyboardButton(month, callback_data="-1"),
+                                                   types.InlineKeyboardButton(">", callback_data="m_next")],
+                                                  second_line,
+                                                  days_array_0, days_array_1, days_array_2,
+                                                  days_array_3, days_array_4, days_array_5],
+                                                 row_width=7)
+    return inline_keyboard
 
 
 @bot.message_handler(content_types=['text'], commands=['start'], func=lambda message: message.chat.id not in black_id)
@@ -123,7 +183,7 @@ def chat(message):
 
 
 def choose_category(message, booking):
-    if message.text.lower() == "консультация" or message.text.lower() == "тренировка" or message.text.lower() == "тейпирование":
+    if message.text.lower() == "консультация" or message.text.lower() == "тренировка":
         booking['category'] = message.text
 
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -134,6 +194,12 @@ def choose_category(message, booking):
         sent = bot.send_message(message.chat.id,
                                 'Выбери тип проведения услуги "Очная" или "Заочная"', reply_markup=markup)
         bot.register_next_step_handler(sent, choose_type, booking)
+    elif message.text.lower() == "тейпирование":
+        booking['category'] = message.text
+        booking['type'] = "Очная"
+        inline_keyboard = create_calendar()
+        sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
+        bot.register_next_step_handler(sent, choose_date, booking)
     else:
         sent = bot.send_message(message.chat.id,
                                 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Консультация", "Тренировка" либо "Тейпирование"')
@@ -142,60 +208,14 @@ def choose_category(message, booking):
 
 def choose_type(message, booking):
     if message.text.lower() == "очная" or message.text.lower() == "онлайн":
-        red_border = {"y": time.strftime("%Y"),
-                      "m": [time.strftime("%m"), time.strftime("%B")],
-                      "d": [time.strftime("%d"), time.strftime("%a")]}
-        name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
-        # week_name_line = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        second_line = []
-        days_array_0, days_array_1, days_array_2, days_array_3, days_array_4, days_array_5 = [], [], [], [], [], []
-        # first_day = datetime(int(red_border['y']), int(red_border['m'][0]), 1).weekday()
-        first_day = calendar.monthrange(int(red_border['y']), int(red_border['m'][0]))[0]
-        number_prev_month = int(red_border['m'][0]) - 1 if red_border['m'][0] != "01" else 12
-        year_prev_month = int(red_border['y']) if number_prev_month != 12 else int(red_border['y']) - 1
-        prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
-        if first_day != 0:
-            numbers = range(prev_month_days, prev_month_days-8+first_day, -1).__reversed__()
-            for num in numbers:
-                days_array_0.append(types.InlineKeyboardButton(str(num), callback_data="0"))
-            del numbers
-        for day_name in name_line:
-            second_line.append(types.InlineKeyboardButton(day_name, callback_data="-1"))
-        for day in range(int(calendar.monthrange(int(red_border["y"]), int(red_border["m"][0]))[1])):
-            value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0]
-            new_button = types.InlineKeyboardButton(str(day+1), callback_data=str(value))
-            if len(days_array_0) < 7:
-                days_array_0.append(new_button)
-            elif len(days_array_1) < 7:
-                days_array_1.append(new_button)
-            elif len(days_array_2) < 7:
-                days_array_2.append(new_button)
-            elif len(days_array_3) < 7:
-                days_array_3.append(new_button)
-            elif len(days_array_3) < 7:
-                days_array_4.append(new_button)
-            else:
-                days_array_5.append(new_button)
-        i = 1
-        new_month = str(int(red_border['m'][0]) + 1) if red_border['m'][0] != "12" else "1"
-        if len(days_array_5) != 0:
-            while len(days_array_5) < 7:
-                days_array_5.append(types.InlineKeyboardButton(str(i), callback_data=str(i)+"."+new_month))
-                i += 1
-        inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("<", callback_data="m_back"),
-                                                       types.InlineKeyboardButton(red_border["m"][1], callback_data="0"),
-                                                       types.InlineKeyboardButton(">", callback_data="m_next")],
-                                                      second_line,
-                                                      days_array_0, days_array_1, days_array_2,
-                                                      days_array_3, days_array_4, days_array_5],
-                                                     row_width=7)
-
+        inline_keyboard = create_calendar()
         booking['type'] = message.text
         bot.send_message(message.chat.id, "Принято.")
         sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
         bot.register_next_step_handler(sent, choose_date, booking)
     else:
-        sent = bot.send_message(message.chat.id, 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Очная" либо "Онлайн"')
+        sent = bot.send_message(message.chat.id,
+                                'Некорректный формат введенных данных, отправьте сообщение с одним словом "Очная" либо "Онлайн"')
         bot.register_next_step_handler(sent, choose_type, booking)
 
 
@@ -215,7 +235,7 @@ def choose_time(message, booking):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item = types.KeyboardButton(text="Отправить мое местоположение", request_location=True)
         markup.add(item)
-        sent = bot.send_message(message.chat.id, "Укажите Ваш адрес, где будет проходить консультации")
+        sent = bot.send_message(message.chat.id, "Укажите Ваш адрес, где будет проходить консультация")
         bot.register_next_step_handler(sent, choose_addr, booking)
     else:
         booking['addr'] = None
@@ -243,19 +263,53 @@ def confirm(message, booking):
 
 @bot.callback_query_handler(func=lambda call: True)
 def date_callback_handler(call):
-    if call.data != "0":
-        print(call.data)
+    if call.data == "0":
+        bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
+                                  text='Выберите день не из тех, что прошли или сегодня :Р')
     elif call.data == "-1":
-        pass
+        bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text=None)
     elif call.data == "m_back":
-        bot.edit_message_reply_markup()
+        inline_keyboard = create_calendar()
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                      reply_markup=inline_keyboard)
     elif call.data == "m_next":
+        inline_keyboard = create_calendar()
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                      reply_markup=inline_keyboard)
     else:
-        bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text='Выберите день не из тех, что прошли или сегодня :Р')
-
-
-def create_calendar():
-
+        bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
+                                  text='Принято')
+        with open("datebase.json", "r", encoding="UTF-8") as datebase:
+            data = json.loads(datebase.read())
+            if call.data not in data:
+                if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
+                        config.day_border[0][1] == 30 and config.day_border[1][1] == 30):
+                    amount = [config.day_border[1][0] - config.day_border[0][0], 0]
+                elif config.day_border[0][1] == 0 and config.day_border[1][1] == 30:
+                    amount = [config.day_border[1][0] - config.day_border[0][0], 30]
+                elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
+                    amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
+                # amount = [config.day_border[1][0] - config.day_border[0][0], config.day_border[1][1] - config.day_border[0][1]]
+                keyboard, inner_keyboard = [], []
+                # new_day = {}
+                row_number = 0
+                for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
+                    new_minutes = config.day_border[0][1] + i * 30
+                    if new_minutes % 60 == 0:
+                        new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                        new_minutes = "00"
+                    elif new_minutes % 30 == 0:
+                        new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                        new_minutes = "30"
+                    # new_day[new_hour + ":" + new_minutes] =
+                    inner_keyboard.append(types.InlineKeyboardButton(new_hour + ":" + new_minutes,
+                                                                     callback_data=new_hour + ":" + new_minutes))
+                    if len(inner_keyboard) == 2:
+                        keyboard.append(inner_keyboard)
+                        inner_keyboard = []
+                inline_keyboard = types.InlineKeyboardMarkup(keyboard)
+                bot.send_message(call.message.chat.id, "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин", reply_markup=inline_keyboard)
+                # data[call.data] = new_day
 
 
 def black_list_handler(message, direction):
@@ -337,89 +391,91 @@ def black_list_handler(message, direction):
                 bot.register_next_step_handler(sent, admin_after)
 
 
-def mailing(message, arguments=None, user_id=None):
-    markup = back_markup()
-    with open("user_base.json", "r", encoding="UTF-8") as database:
-        data = json.loads(database.read())
-        if arguments:
-            if user_id is not None:
-                try:
-                    sent = bot.send_message(user_id, message.text, reply_markup=markup)
-                    bot.register_next_step_handler(sent, feedback, message.text)
-                except ApiException:
-                    bot.send_message(admin_id,
-                                     "Вопрос не был отправлен, т.к. пользователь заблокировал бота или отправка сообщений ему невозможна.",
-                                     reply_markup=markup)
-                finally:
-                    return 0
-            for person in data['users']:
-                try:
-                    if person['id'] != message.from_user.id:
-                        sent = bot.send_message(person['id'], message.text, reply_markup=markup)
-                        bot.register_next_step_handler(sent, feedback, message.text)
-                    else:
-                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-                except ApiException:
-                    continue
-                else:
-                    continue
-            return 0
-        if message.content_type == 'text':
-            for person in data['users']:
-                try:
-                    if person['id'] != message.from_user.id:
-                        bot.send_message(person['id'], message.text, reply_markup=markup)
-                    else:
-                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-                except ApiException:
-                    continue
-                else:
-                    continue
-            bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
-        elif message.content_type == 'photo':
-            raw = message.photo[2].file_id
-            name = "mailing.jpg"
-            file_info = bot.get_file(raw)
-            downloaded_file = bot.download_file(file_info.file_path)
-            with open(name, "wb") as photo:
-                photo.write(downloaded_file)
-            for person in data['users']:
-                photo = open(name, "rb")
-                try:
-                    if person['id'] != message.from_user.id:
-                        bot.send_photo(person['id'], photo, reply_markup=markup)
-                    else:
-                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-                except ApiException:
-                    photo.close()
-                    continue
-                else:
-                    photo.close()
-                    continue
-            bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
-        elif message.content_type == 'document':
-            raw = message.document.file_id
-            name = "mailing" + message.document.file_name[-4:]
-            file_info = bot.get_file(raw)
-            downloaded_file = bot.download_file(file_info.file_path)
-            with open(name, "wb") as document:
-                document.write(downloaded_file)
-            for person in data['users']:
-                document = open(name, "rb")
-                try:
-                    if person['id'] != message.from_user.id:
-                        bot.send_document(person['id'], document, reply_markup=markup)
-                    else:
-                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-                except ApiException:
-                    document.close()
-                    continue
-                else:
-                    document.close()
-                    continue
-            bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
-        else:
-            bot.send_message(message.chat.id, "Неподдерживаемый тип файла", reply_markup=markup)
+# mailing
+
+# def mailing(message, arguments=None, user_id=None):
+#     markup = back_markup() - Нет
+#     with open("user_base.json", "r", encoding="UTF-8") as database:
+#         data = json.loads(database.read())
+#         if arguments:
+#             if user_id is not None:
+#                 try:
+#                     sent = bot.send_message(user_id, message.text, reply_markup=markup)
+#                     bot.register_next_step_handler(sent, feedback, message.text)
+#                 except ApiException:
+#                     bot.send_message(admin_id,
+#                                      "Вопрос не был отправлен, т.к. пользователь заблокировал бота или отправка сообщений ему невозможна.",
+#                                      reply_markup=markup)
+#                 finally:
+#                     return 0
+#             for person in data['users']:
+#                 try:
+#                     if person['id'] != message.from_user.id:
+#                         sent = bot.send_message(person['id'], message.text, reply_markup=markup)
+#                         bot.register_next_step_handler(sent, feedback, message.text)
+#                     else:
+#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+#                 except ApiException:
+#                     continue
+#                 else:
+#                     continue
+#             return 0
+#         if message.content_type == 'text':
+#             for person in data['users']:
+#                 try:
+#                     if person['id'] != message.from_user.id:
+#                         bot.send_message(person['id'], message.text, reply_markup=markup)
+#                     else:
+#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+#                 except ApiException:
+#                     continue
+#                 else:
+#                     continue
+#             bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
+#         elif message.content_type == 'photo':
+#             raw = message.photo[2].file_id
+#             name = "mailing.jpg"
+#             file_info = bot.get_file(raw)
+#             downloaded_file = bot.download_file(file_info.file_path)
+#             with open(name, "wb") as photo:
+#                 photo.write(downloaded_file)
+#             for person in data['users']:
+#                 photo = open(name, "rb")
+#                 try:
+#                     if person['id'] != message.from_user.id:
+#                         bot.send_photo(person['id'], photo, reply_markup=markup)
+#                     else:
+#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+#                 except ApiException:
+#                     photo.close()
+#                     continue
+#                 else:
+#                     photo.close()
+#                     continue
+#             bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
+#         elif message.content_type == 'document':
+#             raw = message.document.file_id
+#             name = "mailing" + message.document.file_name[-4:]
+#             file_info = bot.get_file(raw)
+#             downloaded_file = bot.download_file(file_info.file_path)
+#             with open(name, "wb") as document:
+#                 document.write(downloaded_file)
+#             for person in data['users']:
+#                 document = open(name, "rb")
+#                 try:
+#                     if person['id'] != message.from_user.id:
+#                         bot.send_document(person['id'], document, reply_markup=markup)
+#                     else:
+#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+#                 except ApiException:
+#                     document.close()
+#                     continue
+#                 else:
+#                     document.close()
+#                     continue
+#             bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
+#         else:
+#             bot.send_message(message.chat.id, "Неподдерживаемый тип файла", reply_markup=markup)
 
 
 def feedback(message, question):
