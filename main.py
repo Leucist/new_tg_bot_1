@@ -140,11 +140,11 @@ def create_calendar(month_diff=0):
             keyboard_row.append(types.InlineKeyboardButton(str(num), callback_data="0"))
         del numbers
 
-    days = int(calendar.monthrange(year, month))
+    days = int(calendar.monthrange(year, month)[1])
     for day in range(days):
         value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0] + "." + \
                                                                red_border["y"]
-        color_circle = "🟢"
+        color_circle = "🟢 "
         # color_circle = "🟢" if ... else "🔴🟠🔴🔴🔴🔴"
         new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
         # new_button = types.InlineKeyboardButton("🟢 " + str(day + 1), callback_data=str(value))
@@ -301,7 +301,6 @@ def date_callback_handler(call):
                 # amount = [config.day_border[1][0] - config.day_border[0][0], config.day_border[1][1] - config.day_border[0][1]]
                 keyboard, inner_keyboard = [], []
                 # new_day = {}
-                row_number = 0
                 for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
                     new_minutes = config.day_border[0][1] + i * 30
                     if new_minutes % 60 == 0:
