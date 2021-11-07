@@ -112,22 +112,23 @@ def create_calendar(month_diff=0):
                   "m": time.strftime("%m"),
                   "d": [time.strftime("%d"), time.strftime("%a")]}
     months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
-    keyboard = [[types.InlineKeyboardButton("<", callback_data="m_back"),
-                 types.InlineKeyboardButton(months[int(red_border["m"][0]) + month_diff], callback_data="-1"),
-                 types.InlineKeyboardButton(">", callback_data="m_next")]]
-    name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
-    second_line, keyboard_row = [], []
-    for day_name in name_line:
-        second_line.append(types.InlineKeyboardButton(day_name, callback_data="-1"))
-    keyboard.append(second_line)
 
     # INT
-    month = int(red_border["m"]) + month_diff
+    month = int(red_border["m"]) + month_diff if int(red_border["m"]) + month_diff < 13 else int(red_border["m"]) + month_diff - 12
     year = int(red_border["y"]) + 1 if month > 12 else int(red_border["y"])
 
     # STR
     new_month = str(month + 1) if month != 12 else "1"
     new_year = str(year + 1) if new_month == "1" else str(year)
+
+    keyboard = [[types.InlineKeyboardButton("<", callback_data="move=" + str(month_diff-1)),
+                 types.InlineKeyboardButton(months[month - 1], callback_data="-1"),
+                 types.InlineKeyboardButton(">", callback_data="move=" + str(month_diff+1))]]
+    name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
+    second_line, keyboard_row = [], []
+    for day_name in name_line:
+        second_line.append(types.InlineKeyboardButton(day_name, callback_data="-1"))
+    keyboard.append(second_line)
 
     first_day = calendar.monthrange(year, month)[0]
     number_prev_month = month - 1 if month != 1 else 12
@@ -135,16 +136,20 @@ def create_calendar(month_diff=0):
     prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
 
     if first_day != 0:
-        numbers = range(prev_month_days, prev_month_days - 8 + first_day, -1).__reversed__()
+        numbers = range(prev_month_days, prev_month_days - first_day, -1).__reversed__()
+        # print(*numbers)
         for num in numbers:
             keyboard_row.append(types.InlineKeyboardButton(str(num), callback_data="0"))
         del numbers
 
     days = int(calendar.monthrange(year, month)[1])
+    # with open(",,,") ...
     for day in range(days):
-        value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"][0] + "." + \
+        value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"] + "." + \
                                                                red_border["y"]
         color_circle = "🟢 "
+        if month_diff < 0:
+            color_circle = "🔴 "
         # color_circle = "🟢" if ... else "🔴🟠🔴🔴🔴🔴"
         new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
         # new_button = types.InlineKeyboardButton("🟢 " + str(day + 1), callback_data=str(value))
@@ -159,17 +164,7 @@ def create_calendar(month_diff=0):
                 types.InlineKeyboardButton(str(i), callback_data=str(i) + "." + new_month + "." + new_year))
             i += 1
         keyboard.append(keyboard_row)
-    # if month_diff == 0:
-    #     month = red_border["m"][1]
-    # название месяца изменяется + -
     inline_keyboard = types.InlineKeyboardMarkup(keyboard)
-    # inline_keyboard = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("<", callback_data="m_back"),
-    #                                                types.InlineKeyboardButton(month, callback_data="-1"),
-    #                                                types.InlineKeyboardButton(">", callback_data="m_next")],
-    #                                               second_line,
-    #                                               days_array_0, days_array_1, days_array_2,
-    #                                               days_array_3, days_array_4, days_array_5],
-    #                                              row_width=7)
     return inline_keyboard
 
 
@@ -277,12 +272,9 @@ def date_callback_handler(call):
                                   text='Выберите день не из тех, что прошли или сегодня :Р')
     elif call.data == "-1":
         bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text=None)
-    elif call.data == "m_back":
-        inline_keyboard = create_calendar()
-        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                      reply_markup=inline_keyboard)
-    elif call.data == "m_next":
-        inline_keyboard = create_calendar()
+    elif "move" in call.data:
+        month_diff = int(call.data[5:])
+        inline_keyboard = create_calendar(month_diff)
         bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       reply_markup=inline_keyboard)
     else:
