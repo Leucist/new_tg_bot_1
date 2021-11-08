@@ -16,6 +16,7 @@ adm_functions = ['Вакансии', 'Черный список', 'Просмо�
 vacancy_functions = ["Добавить вакансию", "Удалить вакансию", "Просмотреть текущий список вакансий"]
 black_list_functions = ['Добавить пользователя в черный список', 'Удалить пользователя из черного списка',
                         'Просмотреть черный список']
+booking = {}
 black_id = []
 admin_id = 1064282294
 
@@ -111,19 +112,21 @@ def create_calendar(month_diff=0):
     red_border = {"y": time.strftime("%Y"),
                   "m": time.strftime("%m"),
                   "d": [time.strftime("%d"), time.strftime("%a")]}
-    months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+    months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь",
+              "Декабрь"]
 
     # INT
-    month = int(red_border["m"]) + month_diff if int(red_border["m"]) + month_diff < 13 else int(red_border["m"]) + month_diff - 12
+    month = int(red_border["m"]) + month_diff if int(red_border["m"]) + month_diff < 13 else int(
+        red_border["m"]) + month_diff - 12
     year = int(red_border["y"]) + 1 if month > 12 else int(red_border["y"])
 
     # STR
     new_month = str(month + 1) if month != 12 else "1"
     new_year = str(year + 1) if new_month == "1" else str(year)
 
-    keyboard = [[types.InlineKeyboardButton("<", callback_data="move=" + str(month_diff-1)),
+    keyboard = [[types.InlineKeyboardButton("<", callback_data="move=" + str(month_diff - 1)),
                  types.InlineKeyboardButton(months[month - 1], callback_data="-1"),
-                 types.InlineKeyboardButton(">", callback_data="move=" + str(month_diff+1))]]
+                 types.InlineKeyboardButton(">", callback_data="move=" + str(month_diff + 1))]]
     name_line = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
     second_line, keyboard_row = [], []
     for day_name in name_line:
@@ -143,27 +146,33 @@ def create_calendar(month_diff=0):
         del numbers
 
     days = int(calendar.monthrange(year, month)[1])
-    # with open(",,,") ...
-    for day in range(days):
-        value = "0" if day + 1 <= int(red_border["d"][0]) else str(day + 1) + "." + red_border["m"] + "." + \
-                                                               red_border["y"]
-        color_circle = "🟢 "
-        if month_diff < 0:
-            color_circle = "🔴 "
-        # color_circle = "🟢" if ... else "🔴🟠🔴🔴🔴🔴"
-        new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
-        # new_button = types.InlineKeyboardButton("🟢 " + str(day + 1), callback_data=str(value))
-        keyboard_row.append(new_button)
-        if len(keyboard_row) == 7:
+    filename = "datebase.json"
+    with open(filename, "r", encoding="UTF-8") as datebase:
+        data = json.loads(datebase.read())
+        for day in range(days):
+            formatted_date = str(day + 1) + "." + str(month) + "." + str(year)
+            value = "0" \
+                if day + 1 <= int(red_border["d"][0]) and month == int(red_border["m"]) \
+                or month < int(red_border["m"]) \
+                else formatted_date
+            if not data[formatted_date]:
+                color_circle = "🟢 "
+            if month_diff < 0:
+                color_circle = "🔴 "
+            # color_circle = "🟢" if ... else "🔴🟠🔴🔴🔴🔴"
+            new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
+            # new_button = types.InlineKeyboardButton("🟢 " + str(day + 1), callback_data=str(value))
+            keyboard_row.append(new_button)
+            if len(keyboard_row) == 7:
+                keyboard.append(keyboard_row)
+                keyboard_row = []
+        i = 1
+        if len(keyboard_row) != 0:
+            while len(keyboard_row) < 7:
+                keyboard_row.append(
+                    types.InlineKeyboardButton(str(i), callback_data=str(i) + "." + new_month + "." + new_year))
+                i += 1
             keyboard.append(keyboard_row)
-            keyboard_row = []
-    i = 1
-    if len(keyboard_row) != 0:
-        while len(keyboard_row) < 7:
-            keyboard_row.append(
-                types.InlineKeyboardButton(str(i), callback_data=str(i) + "." + new_month + "." + new_year))
-            i += 1
-        keyboard.append(keyboard_row)
     inline_keyboard = types.InlineKeyboardMarkup(keyboard)
     return inline_keyboard
 
@@ -179,14 +188,15 @@ def chat(message):
             item3 = types.KeyboardButton("Тейпирование")
             # Тут бы подробнее о каждом расписать, чтобы человек понимал. Имхо.
             markup.add(item1, item2, item3)
-            booking = {}
+            global booking
             sent = bot.send_message(message.chat.id,
                                     "Привет, <b>{0.first_name}</b>!\nЯ бот-помощник Fitandbaby. Я помогу тебе выбрать и записаться на услугу от Fitandbaby.\nДля начала, выберите услугу из предложенных".format(
                                         message.from_user), parse_mode='html', reply_markup=markup)
-            bot.register_next_step_handler(sent, choose_category, booking)
+            bot.register_next_step_handler(sent, choose_category)
 
 
-def choose_category(message, booking):
+def choose_category(message):
+    global booking
     if message.text.lower() == "консультация" or message.text.lower() == "тренировка":
         booking['category'] = message.text
 
@@ -203,35 +213,37 @@ def choose_category(message, booking):
         booking['type'] = "Очная"
         inline_keyboard = create_calendar()
         sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
-        bot.register_next_step_handler(sent, choose_date, booking)
+        bot.register_next_step_handler(sent, choose_date)
     else:
         sent = bot.send_message(message.chat.id,
                                 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Консультация", "Тренировка" либо "Тейпирование"')
-        bot.register_next_step_handler(sent, choose_type, booking)
+        bot.register_next_step_handler(sent, choose_type)
 
 
-def choose_type(message, booking):
+def choose_type(message):
+    global booking
     if message.text.lower() == "очная" or message.text.lower() == "онлайн":
         inline_keyboard = create_calendar()
         booking['type'] = message.text
         bot.send_message(message.chat.id, "Принято.")
         sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
-        bot.register_next_step_handler(sent, choose_date, booking)
+        bot.register_next_step_handler(sent, choose_date)
     else:
         sent = bot.send_message(message.chat.id,
                                 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Очная" либо "Онлайн"')
-        bot.register_next_step_handler(sent, choose_type, booking)
+        bot.register_next_step_handler(sent, choose_type)
 
 
-def choose_date(message, booking):
+def choose_date(message):
+    global booking
     # Допустим, что дата подается в верном формате, например, через callback-query selector
     booking['date'] = message.text
     bot.send_message(message.chat.id, "Принято.")
     sent = bot.send_message(message.chat.id, "Выберите время консультации")
-    bot.register_next_step_handler(sent, choose_time, booking)
+    bot.register_next_step_handler(sent, choose_time)
 
 
-def choose_time(message, booking):
+def choose_time(message):
     # Допустим, что время подается в верном формате, например, через callback-query selector
     booking['time'] = message.text
     bot.send_message(message.chat.id, "Принято.")
@@ -267,22 +279,51 @@ def confirm(message, booking):
 
 @bot.callback_query_handler(func=lambda call: True)
 def date_callback_handler(call):
+    global booking
     if call.data == "0":
         bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
                                   text='Выберите день не из тех, что прошли или сегодня :Р')
     elif call.data == "-1":
         bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text=None)
+    elif call.data == "go_back":
+        inline_keyboard = create_calendar()
+        bot.edit_message_text(
+            "Выберите дату консультации >",
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=inline_keyboard
+        )
     elif "move" in call.data:
         month_diff = int(call.data[5:])
-        inline_keyboard = create_calendar(month_diff)
-        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                      reply_markup=inline_keyboard)
+        if abs(month_diff) <= 3:
+            inline_keyboard = create_calendar(month_diff)
+            bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                          reply_markup=inline_keyboard)
     elif "time" in call.data:
         filename = "datebase.json"
         with open(filename, "r", encoding="UTF-8") as datebase:
             data = json.loads(datebase.read())
-            if data[call]
+            if data[booking["date"]][call.data]:
+                bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
+                                          text='Это время уже занято, выберите другое')
+            else:
+                # "time": [user_id, {...}]
+                data[booking["date"]][call.data] = [call.from_user.id, {
+                    'type': booking['type'],
+                    'category': booking['category'],
+                    'contact': booking['contact'],
+                    'addr': booking['addr']
+                }]
+                write_database(data, filename)
+                bot.edit_message_text(
+                    "Вы успешно записались на " + booking['type'] + booking['category'],
+                    call.message.chat.id,
+                    call.message.message_id,
+                    reply_markup=types.ReplyKeyboardRemove()
+                )
+                booking = {}
     else:
+        booking["date"] = call.data
         bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
                                   text='Принято')
         filename = "datebase.json"
@@ -296,7 +337,6 @@ def date_callback_handler(call):
                     amount = [config.day_border[1][0] - config.day_border[0][0], 30]
                 elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
                     amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
-                # amount = [config.day_border[1][0] - config.day_border[0][0], config.day_border[1][1] - config.day_border[0][1]]
                 data[call.data] = {}
                 for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
                     new_minutes = config.day_border[0][1] + i * 30
@@ -323,6 +363,7 @@ def date_callback_handler(call):
                 if len(inner_keyboard) == 2:
                     keyboard.append(inner_keyboard)
                     inner_keyboard = []
+            keyboard.append(types.InlineKeyboardButton("< Назад", callback_data="go_back"))
             inline_keyboard = types.InlineKeyboardMarkup(keyboard)
             bot.edit_message_text(
                 "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин",
@@ -330,8 +371,8 @@ def date_callback_handler(call):
                 call.message.message_id,
                 reply_markup=inline_keyboard
             )
-                # bot.send_message(call.message.chat.id, "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин", reply_markup=inline_keyboard)
-                # data[call.data] = new_day
+            # bot.send_message(call.message.chat.id, "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин", reply_markup=inline_keyboard)
+            # data[call.data] = new_day
 
 
 def black_list_handler(message, direction):
