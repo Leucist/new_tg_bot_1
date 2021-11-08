@@ -277,10 +277,16 @@ def date_callback_handler(call):
         inline_keyboard = create_calendar(month_diff)
         bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                       reply_markup=inline_keyboard)
+    elif "time" in call.data:
+        filename = "datebase.json"
+        with open(filename, "r", encoding="UTF-8") as datebase:
+            data = json.loads(datebase.read())
+            if data[call]
     else:
         bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
                                   text='Принято')
-        with open("datebase.json", "r", encoding="UTF-8") as datebase:
+        filename = "datebase.json"
+        with open(filename, "r", encoding="UTF-8") as datebase:
             data = json.loads(datebase.read())
             if call.data not in data:
                 if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
@@ -291,8 +297,7 @@ def date_callback_handler(call):
                 elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
                     amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
                 # amount = [config.day_border[1][0] - config.day_border[0][0], config.day_border[1][1] - config.day_border[0][1]]
-                keyboard, inner_keyboard = [], []
-                # new_day = {}
+                data[call.data] = {}
                 for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
                     new_minutes = config.day_border[0][1] + i * 30
                     if new_minutes % 60 == 0:
@@ -301,14 +306,31 @@ def date_callback_handler(call):
                     elif new_minutes % 30 == 0:
                         new_hour = str(config.day_border[0][0] + new_minutes // 60)
                         new_minutes = "30"
-                    # new_day[new_hour + ":" + new_minutes] =
-                    inner_keyboard.append(types.InlineKeyboardButton(new_hour + ":" + new_minutes,
-                                                                     callback_data=new_hour + ":" + new_minutes))
-                    if len(inner_keyboard) == 2:
-                        keyboard.append(inner_keyboard)
-                        inner_keyboard = []
-                inline_keyboard = types.InlineKeyboardMarkup(keyboard)
-                bot.send_message(call.message.chat.id, "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин", reply_markup=inline_keyboard)
+                    if len(new_hour) < 2:
+                        new_hour = "0" + new_hour
+                    data[call.data][new_hour + ":" + new_minutes] = []  # [id, type]
+                write_database(data, filename)
+
+        with open(filename, "r", encoding="UTF-8") as datebase:
+            data = json.loads(datebase.read())
+            keyboard, inner_keyboard = [], []
+            for time_shift in data[call.data]:
+                color_circle = "🟢 "
+                if data[call.data][time_shift]:
+                    color_circle = "🔴 "
+                shift = time_shift[:2] + ":" + time_shift[3:]
+                inner_keyboard.append(types.InlineKeyboardButton(color_circle + shift, callback_data="time=" + shift))
+                if len(inner_keyboard) == 2:
+                    keyboard.append(inner_keyboard)
+                    inner_keyboard = []
+            inline_keyboard = types.InlineKeyboardMarkup(keyboard)
+            bot.edit_message_text(
+                "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин",
+                call.message.chat.id,
+                call.message.message_id,
+                reply_markup=inline_keyboard
+            )
+                # bot.send_message(call.message.chat.id, "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин", reply_markup=inline_keyboard)
                 # data[call.data] = new_day
 
 
