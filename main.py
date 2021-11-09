@@ -12,7 +12,7 @@ bot = telebot.TeleBot(config.TOKEN)
 # time.altzone = -10800  Смещение на часовой пояс GMT +3
 
 GREEN_CIRCLE = "🟢"
-RED_CIRCLE = "🔴"    # - Здесь символ. Честно
+RED_CIRCLE = "🔴"
 
 # adm_functions = ['Вакансии', 'Черный список', 'Установить частоту оповещений', 'Рассылка', 'Провести опрос']
 adm_functions = ['Вакансии', 'Черный список', 'Просмотреть Базу Данных', 'Отправить сообщение-вопрос', 'Рассылка']
@@ -127,6 +127,9 @@ def create_calendar(month_diff=0):
     new_month = str(month + 1) if month != 12 else "1"
     new_year = str(year + 1) if new_month == "1" else str(year)
 
+    prev_month = str(month - 1) if month != 1 else "12"
+    prev_year = str(year - 1) if prev_month == "12" else str(year)
+
     keyboard = [[types.InlineKeyboardButton("<", callback_data="move=" + str(month_diff - 1)),
                  types.InlineKeyboardButton(months[month - 1], callback_data="-2"),
                  types.InlineKeyboardButton(">", callback_data="move=" + str(month_diff + 1))]]
@@ -141,16 +144,54 @@ def create_calendar(month_diff=0):
     year_prev_month = year if number_prev_month != 12 else year - 1
     prev_month_days = calendar.monthrange(year_prev_month, number_prev_month)[1]
 
-    if first_day != 0:
-        numbers = range(prev_month_days, prev_month_days - first_day, -1).__reversed__()
-        for num in numbers:
-            keyboard_row.append(types.InlineKeyboardButton(str(num), callback_data="0"))
-        del numbers
-
     days = int(calendar.monthrange(year, month)[1])
     filename = "datebase.json"
     with open(filename, "r", encoding="UTF-8") as datebase:
         data = json.loads(datebase.read())
+        if first_day != 0:
+            numbers = range(prev_month_days, prev_month_days - first_day, -1).__reversed__()
+            for num in numbers:
+                if month_diff > 0:
+                    prev_date = str(num) + "." + prev_month + "." + prev_year
+                    value = prev_date
+                    if prev_date not in data:
+                        color_circle = GREEN_CIRCLE
+                        if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
+                                config.day_border[0][1] == 30 and config.day_border[1][1] == 30):
+                            amount = [config.day_border[1][0] - config.day_border[0][0], 0]
+                        elif config.day_border[0][1] == 0 and config.day_border[1][1] == 30:
+                            amount = [config.day_border[1][0] - config.day_border[0][0], 30]
+                        elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
+                            amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
+                        data[prev_date] = {}
+                        for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
+                            new_minutes = config.day_border[0][1] + i * 30
+                            if new_minutes % 60 == 0:
+                                new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                                new_minutes = "00"
+                            elif new_minutes % 30 == 0:
+                                new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                                new_minutes = "30"
+                            if len(new_hour) < 2:
+                                new_hour = "0" + new_hour
+                            data[prev_date][new_hour + ":" + new_minutes] = []  # [id, type]
+                        write_database(data, filename)
+                    else:
+                        available = False
+                        for shift in data[prev_date]:
+                            if not data[prev_date][shift]:
+                                available = True
+                        if available:
+                            color_circle = GREEN_CIRCLE
+                        else:
+                            color_circle = RED_CIRCLE
+                            value = "-1"
+                else:
+                    color_circle = RED_CIRCLE
+                    value = "-1"
+                keyboard_row.append(types.InlineKeyboardButton(color_circle + " " + str(num), callback_data=value))
+            del numbers
+
         for day in range(days):
             formatted_date = str(day + 1) + "." + str(month) + "." + str(year)
             value = "0" \
@@ -158,10 +199,13 @@ def create_calendar(month_diff=0):
                 or month < int(red_border["m"]) \
                 else formatted_date
             if month_diff < 0:
-                color_circle = RED_CIRCLE + " "
+                color_circle = RED_CIRCLE
             else:
-                if not data[formatted_date]:
-                    color_circle = GREEN_CIRCLE + " "
+                if day < int(red_border["d"][0]) and month_diff == 0:
+                    color_circle = RED_CIRCLE
+                    value = "-1"
+                elif formatted_date not in data:
+                    color_circle = GREEN_CIRCLE
 
                     if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
                             config.day_border[0][1] == 30 and config.day_border[1][1] == 30):
@@ -186,16 +230,15 @@ def create_calendar(month_diff=0):
                 else:
                     available = False
                     for shift in data[formatted_date]:
-                        if not [formatted_date][shift]:
+                        if not data[formatted_date][shift]:
                             available = True
                     if available:
                         color_circle = GREEN_CIRCLE
                     else:
                         color_circle = RED_CIRCLE
                         value = "-1"
-                    color_circle += " "
 
-            new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
+            new_button = types.InlineKeyboardButton(color_circle + " " + str(day + 1), callback_data=str(value))
             keyboard_row.append(new_button)
             if len(keyboard_row) == 7:
                 keyboard.append(keyboard_row)
@@ -203,8 +246,47 @@ def create_calendar(month_diff=0):
         i = 1
         if len(keyboard_row) != 0:
             while len(keyboard_row) < 7:
+                if month_diff >= 0:
+                    post_date = str(i) + "." + new_month + "." + new_year
+                    value = post_date
+                    if post_date not in data:
+                        color_circle = GREEN_CIRCLE
+                        if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
+                                config.day_border[0][1] == 30 and config.day_border[1][1] == 30):
+                            amount = [config.day_border[1][0] - config.day_border[0][0], 0]
+                        elif config.day_border[0][1] == 0 and config.day_border[1][1] == 30:
+                            amount = [config.day_border[1][0] - config.day_border[0][0], 30]
+                        elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
+                            amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
+                        data[post_date] = {}
+                        for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
+                            new_minutes = config.day_border[0][1] + i * 30
+                            if new_minutes % 60 == 0:
+                                new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                                new_minutes = "00"
+                            elif new_minutes % 30 == 0:
+                                new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                                new_minutes = "30"
+                            if len(new_hour) < 2:
+                                new_hour = "0" + new_hour
+                            data[post_date][new_hour + ":" + new_minutes] = []  # [id, type]
+                        write_database(data, filename)
+                    else:
+                        available = False
+                        for shift in data[post_date]:
+                            if not data[post_date][shift]:
+                                available = True
+                        if available:
+                            color_circle = GREEN_CIRCLE
+                        else:
+                            color_circle = RED_CIRCLE
+                            value = "-1"
+                else:
+                    color_circle = RED_CIRCLE
+                    value = "-1"
+
                 keyboard_row.append(
-                    types.InlineKeyboardButton(str(i), callback_data=str(i) + "." + new_month + "." + new_year))
+                    types.InlineKeyboardButton(color_circle + " " + str(i), callback_data=value))
                 i += 1
             keyboard.append(keyboard_row)
     inline_keyboard = types.InlineKeyboardMarkup(keyboard)
@@ -241,7 +323,7 @@ def choose_category(message):
 
         sent = bot.send_message(message.chat.id,
                                 'Выбери тип проведения услуги "Очная" или "Заочная"', reply_markup=markup)
-        bot.register_next_step_handler(sent, choose_type, booking)
+        bot.register_next_step_handler(sent, choose_type)
     elif message.text.lower() == "тейпирование":
         booking['category'] = message.text
         booking['type'] = "Очная"
@@ -377,7 +459,7 @@ def date_callback_handler(call):
                 if len(inner_keyboard) == 2:
                     keyboard.append(inner_keyboard)
                     inner_keyboard = []
-            keyboard.append(types.InlineKeyboardButton("< Назад", callback_data="go_back"))
+            keyboard.append([types.InlineKeyboardButton("< Назад", callback_data="go_back")])
             inline_keyboard = types.InlineKeyboardMarkup(keyboard)
             bot.edit_message_text(
                 "Выберите время консультации.\nКонсультация или тренировка занимают 1 час, тейпирование - 30мин",
