@@ -164,7 +164,7 @@ def create_calendar(month_diff=0):
                         elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
                             amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
                         data[prev_date] = {}
-                        for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
+                        for i in range(amount[0] * 2 + int(amount[1] / 30)):
                             new_minutes = config.day_border[0][1] + i * 30
                             if new_minutes % 60 == 0:
                                 new_hour = str(config.day_border[0][0] + new_minutes // 60)
@@ -189,14 +189,14 @@ def create_calendar(month_diff=0):
                 else:
                     color_circle = RED_CIRCLE
                     value = "-1"
-                keyboard_row.append(types.InlineKeyboardButton(color_circle + " " + str(num), callback_data=value))
+                keyboard_row.append(types.InlineKeyboardButton(color_circle + str(num), callback_data=value))
             del numbers
 
         for day in range(days):
             formatted_date = str(day + 1) + "." + str(month) + "." + str(year)
             value = "0" \
                 if day + 1 <= int(red_border["d"][0]) and month == int(red_border["m"]) \
-                or month < int(red_border["m"]) \
+                   or month < int(red_border["m"]) \
                 else formatted_date
             if month_diff < 0:
                 color_circle = RED_CIRCLE
@@ -215,7 +215,7 @@ def create_calendar(month_diff=0):
                     elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
                         amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
                     data[formatted_date] = {}
-                    for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
+                    for i in range(amount[0] * 2 + int(amount[1] / 30)):
                         new_minutes = config.day_border[0][1] + i * 30
                         if new_minutes % 60 == 0:
                             new_hour = str(config.day_border[0][0] + new_minutes // 60)
@@ -238,7 +238,7 @@ def create_calendar(month_diff=0):
                         color_circle = RED_CIRCLE
                         value = "-1"
 
-            new_button = types.InlineKeyboardButton(color_circle + " " + str(day + 1), callback_data=str(value))
+            new_button = types.InlineKeyboardButton(color_circle + str(day + 1), callback_data=str(value))
             keyboard_row.append(new_button)
             if len(keyboard_row) == 7:
                 keyboard.append(keyboard_row)
@@ -259,7 +259,7 @@ def create_calendar(month_diff=0):
                         elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
                             amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
                         data[post_date] = {}
-                        for i in range(amount[0] * 2 + int(amount[1] / 30) + 2):
+                        for i in range(amount[0] * 2 + int(amount[1] / 30)):
                             new_minutes = config.day_border[0][1] + i * 30
                             if new_minutes % 60 == 0:
                                 new_hour = str(config.day_border[0][0] + new_minutes // 60)
@@ -286,7 +286,7 @@ def create_calendar(month_diff=0):
                     value = "-1"
 
                 keyboard_row.append(
-                    types.InlineKeyboardButton(color_circle + " " + str(i), callback_data=value))
+                    types.InlineKeyboardButton(color_circle + str(i), callback_data=value))
                 i += 1
             keyboard.append(keyboard_row)
     inline_keyboard = types.InlineKeyboardMarkup(keyboard)
@@ -327,9 +327,16 @@ def choose_category(message):
     elif message.text.lower() == "тейпирование":
         booking['category'] = message.text
         booking['type'] = "Очная"
-        inline_keyboard = create_calendar()
-        sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
-        bot.register_next_step_handler(sent, choose_date)
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item = types.KeyboardButton("Отправить текущее местоположение")
+        markup.add(item)
+
+        bot.send_message(message.chat.id, "Принято.")
+        sent = bot.send_message(message.chat.id,
+                                'Укажите Ваш адрес, где будет проходить консультация',
+                                reply_markup=markup)
+        bot.register_next_step_handler(sent, choose_addr)
     else:
         sent = bot.send_message(message.chat.id,
                                 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Консультация", "Тренировка" либо "Тейпирование"')
@@ -338,59 +345,80 @@ def choose_category(message):
 
 def choose_type(message):
     global booking
-    if message.text.lower() == "очная" or message.text.lower() == "онлайн":
-        inline_keyboard = create_calendar()
+    if message.text.lower() == "очная":
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item = types.KeyboardButton("Отправить текущее местоположение")
+        markup.add(item)
+
         booking['type'] = message.text
         bot.send_message(message.chat.id, "Принято.")
-        sent = bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
-        bot.register_next_step_handler(sent, choose_date)
+
+        sent = bot.send_message(message.chat.id,
+                                'Укажите Ваш адрес, где будет проходить консультация',
+                                reply_markup=markup)
+        # 'Укажите Ваш адрес, где будет проходить консультация\nМожете записать адрес текстом либо отправить местоположение, нажав на кнопку "Отправить текущее местоположение"',
+        bot.register_next_step_handler(sent, choose_addr)
+    elif message.text.lower() == "онлайн":
+        booking['type'] = message.text
+        booking['addr'] = None
+        bot.send_message(message.chat.id, "Принято.")
+
+        sent = bot.send_message(message.chat.id, "Отправьте свой логин в Instagram для связи",
+                                reply_markup=types.ReplyKeyboardRemove())
+        bot.register_next_step_handler(sent, choose_contact)
     else:
         sent = bot.send_message(message.chat.id,
                                 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Очная" либо "Онлайн"')
         bot.register_next_step_handler(sent, choose_type)
 
 
-def choose_date(message):
+def choose_addr(message):
     global booking
-    # Допустим, что дата подается в верном формате, например, через callback-query selector
-    booking['date'] = message.text
-    bot.send_message(message.chat.id, "Принято.")
-    sent = bot.send_message(message.chat.id, "Выберите время консультации")
-    bot.register_next_step_handler(sent, choose_time)
-
-
-def choose_time(message):
-    # Допустим, что время подается в верном формате, например, через callback-query selector
-    booking['time'] = message.text
-    bot.send_message(message.chat.id, "Принято.")
-    if booking['type'] == "Очная":
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        item = types.KeyboardButton(text="Отправить мое местоположение", request_location=True)
-        markup.add(item)
-        sent = bot.send_message(message.chat.id, "Укажите Ваш адрес, где будет проходить консультация")
-        bot.register_next_step_handler(sent, choose_addr, booking)
-    else:
-        booking['addr'] = None
-
-
-def choose_addr(message, booking):
     booking['addr'] = message.text
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item1 = types.KeyboardButton("Да, отправить")
-    item2 = types.KeyboardButton("Нет")
-    markup.add(item1, item2)
-    message = "Тип консультации: " + booking['type'] + "\nДата консультации: " + booking['date'] + \
-              "\nВремя консультации: " + booking['time'] + "\nАдрес: " + booking['addr']
-    bot.send_message(message.chat.id, message)
-    sent = bot.send_message(message.chat.id, "Готово.\n\n" + message + "\n\nОтправить заявку?", reply_markup=markup)
-    bot.register_next_step_handler(sent, confirm, booking)
+    bot.send_message(message.chat.id, "Принято.")
+    sent = bot.send_message(message.chat.id, "Отправьте свой логин в Instagram для связи",
+                            reply_markup=types.ReplyKeyboardRemove())
+    bot.register_next_step_handler(sent, choose_contact)
+
+    # markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    # item1 = types.KeyboardButton("Да, отправить")
+    # item2 = types.KeyboardButton("Нет")
+    # markup.add(item1, item2)
+    # message = "Тип консультации: " + booking['type'] + "\nДата консультации: " + booking['date'] + \
+    #           "\nВремя консультации: " + booking['time'] + "\nАдрес: " + booking['addr']
+    # bot.send_message(message.chat.id, message)
+    # sent = bot.send_message(message.chat.id, "Готово.\n\n" + message + "\n\nОтправить заявку?", reply_markup=markup)
+    # bot.register_next_step_handler(sent, )
 
 
-def confirm(message, booking):
-    if message.text == "Да, отправить" or message.text.lower() == "да":
-        pass
-    else:
-        pass
+def choose_contact(message):
+    global booking
+    booking['contact'] = message.text
+    inline_keyboard = create_calendar()
+    bot.send_message(message.chat.id, "Выберите дату консультации >", reply_markup=inline_keyboard)
+
+
+# def choose_date(message):
+#     global booking
+#     # Допустим, что дата подается в верном формате, например, через callback-query selector
+#     booking['date'] = message.text
+#     bot.send_message(message.chat.id, "Принято.")
+#     sent = bot.send_message(message.chat.id, "Выберите время консультации")
+#     bot.register_next_step_handler(sent, choose_time)
+
+
+# def choose_time(message):
+#     # Допустим, что время подается в верном формате, например, через callback-query selector
+#     booking['time'] = message.text
+#     bot.send_message(message.chat.id, "Принято.")
+#     if booking['type'] == "Очная":
+#         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#         item = types.KeyboardButton(text="Отправить мое местоположение", request_location=True)
+#         markup.add(item)
+#         sent = bot.send_message(message.chat.id, "Укажите Ваш адрес, где будет проходить консультация")
+#         bot.register_next_step_handler(sent, choose_addr, booking)
+#     else:
+#         booking['addr'] = None
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -412,37 +440,84 @@ def date_callback_handler(call):
             call.message.message_id,
             reply_markup=inline_keyboard
         )
+    # При нажатии кнопки "<" или ">"
     elif "move" in call.data:
         month_diff = int(call.data[5:])
         if abs(month_diff) <= 3:
             inline_keyboard = create_calendar(month_diff)
             bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                           reply_markup=inline_keyboard)
+    # При нажатии на кнопку со временем
     elif "time" in call.data:
         filename = "datebase.json"
         with open(filename, "r", encoding="UTF-8") as datebase:
             data = json.loads(datebase.read())
-            if data[booking["date"]][call.data]:
+            if data[booking["date"]][call.data[5:]]:
                 bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
                                           text='Это время уже занято, выберите другое')
             else:
+                this_hour = call.data[5:7]
+                this_minutes = call.data[8:10]
+                # Проверка, не является ли выбранная дата нижней границей по времени
+                if call.data[5:] != str(config.day_border[0][0]) + ":" + str(config.day_border[0][1]):
+                    prev_half_hour = str(int(this_hour) - 1) + ":30" if this_minutes == "00" else this_hour + ":00"
+                    # Проверка, занят ли предшествующий получасовой интервал
+                    if data[booking["date"]][prev_half_hour]:
+                        # Проверка, нужен ли дополнительный интервал между записями на "перебраться" на новое место
+                        if booking["category"].lower() != data[booking["date"]][prev_half_hour][1]["category"] != "онлайн":
+                            next_half_hour = this_hour + ":30" if this_minutes == "00" else str(
+                                int(this_hour) + 1) + ":00"
+
+                            this_hour = next_half_hour[:2]
+                            this_minutes = next_half_hour[3:]
+                            # if время следующего интервала недопустимое или занято >
+                            if next_half_hour == "24:00" or int(this_hour) == config.day_border[1][0] \
+                                    and int(this_minutes) == config.day_border[1][1] \
+                                    or data[booking["date"]][next_half_hour]:
+                                bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                                          text='Выбранные Вами полчаса потребуются на перемещение от предыдущего клиента, а следующие недоступны. Пожалуйста, выберите другое время')
+                                return
+                            else:
+                                bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                                          text='Выбранные Вами полчаса потребуются на перемещение от предыдущего клиента. Пожалуйста, выберите Время раньше или позже из доступного')
+                                return
+
                 # "time": [user_id, {...}]
-                data[booking["date"]][call.data] = [call.from_user.id, {
+                data[booking["date"]][call.data[5:]] = [call.from_user.id, {
                     'type': booking['type'],
                     'category': booking['category'],
                     'contact': booking['contact'],
                     'addr': booking['addr']
                 }]
+                if booking['category'].lower() != "тейпирование":
+                    next_half_hour = this_hour + ":30" if this_minutes == "00" else str(int(this_hour) + 1) + ":00"
+                    if next_half_hour == "24:00" \
+                            or config.day_border[1][1] == 30 and int(this_hour) == config.day_border[1][0] \
+                            or config.day_border[1][1] == 0 and int(this_hour) == config.day_border[1][0] - 1 \
+                            and this_minutes == "30":
+                        bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
+                                                  text=booking['category'].capitalize() +
+                                                       ' занимает ~1 час времени, выберите время из доступного раньше')
+                        return
+                    data[booking["date"]][next_half_hour] = [call.from_user.id, {
+                        'type': booking['type'],
+                        'category': booking['category'],
+                        'contact': booking['contact'],
+                        'addr': booking['addr']
+                    }]
                 write_database(data, filename)
                 # Сделать подтверждение ->
+                inline_keyboard = telebot.types.InlineKeyboardMarkup()
+                inline_keyboard.row(types.InlineKeyboardButton("Изменить", callback_data="change"))
                 bot.edit_message_text(
-                    'Вы успешно записались\n- "' + booking['type'].capitalize() + booking['category'] + '",\nВремя: ' +
-                    call.data,
+                    'Вы успешно записались\n-> "' + booking['type'].capitalize() + " " + booking['category'] +
+                    '",\n-> Время: ' + call.data[5:],
                     call.message.chat.id,
                     call.message.message_id,
-                    reply_markup=types.ReplyKeyboardRemove()
+                    reply_markup=inline_keyboard
                 )
                 booking = {}
+    # При нажатии кнопки даты
     else:
         booking["date"] = call.data
         bot.answer_callback_query(callback_query_id=call.id, show_alert=False,
@@ -459,6 +534,7 @@ def date_callback_handler(call):
                 if len(inner_keyboard) == 2:
                     keyboard.append(inner_keyboard)
                     inner_keyboard = []
+            keyboard.append(inner_keyboard)
             keyboard.append([types.InlineKeyboardButton("< Назад", callback_data="go_back")])
             inline_keyboard = types.InlineKeyboardMarkup(keyboard)
             bot.edit_message_text(
