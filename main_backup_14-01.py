@@ -462,62 +462,70 @@ def date_callback_handler(call):
             else:
                 this_hour = call.data[5:7]
                 this_minutes = call.data[8:10]
-                start_hour = this_hour
-                start_minutes = this_minutes
+                # Проверка, не является ли выбранная дата нижней границей по времени
+                if call.data[5:] != str(config.day_border[0][0]) + ":" + str(config.day_border[0][1]):
+                    prev_half_hour = str(int(this_hour) - 1) + ":30" if this_minutes == "00" else this_hour + ":00"
+                    # Проверка, занят ли предшествующий получасовой интервал
+                    if data[booking["date"]][prev_half_hour]:
+                        # Проверка, нужен ли дополнительный интервал между записями на "перебраться" на новое место
+                        if booking["category"].lower() != data[booking["date"]][prev_half_hour][1][
+                            "category"] != "онлайн":
+                            next_half_hour = this_hour + ":30" if this_minutes == "00" else str(
+                                int(this_hour) + 1) + ":00"
+
+                            this_hour = next_half_hour[:2]
+                            this_minutes = next_half_hour[3:]
+                            # if время следующего интервала недопустимое или занято >
+                            if next_half_hour == "24:00" or int(this_hour) == config.day_border[1][0] \
+                                    and int(this_minutes) == config.day_border[1][1] \
+                                    or data[booking["date"]][next_half_hour]:
+                                bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                                          text='Выбранные Вами полчаса потребуются на перемещение от предыдущего клиента, а следующие недоступны. Пожалуйста, выберите другое время')
+                                return
+                            else:
+                                bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                                          text='Выбранные Вами полчаса потребуются на перемещение от предыдущего клиента. Пожалуйста, выберите Время раньше или позже из доступного')
+                                return
 
                 # Запись информации в БД на первые полчаса
                 data[booking["date"]][call.data[5:]] = [call.from_user.id, {
                     'type': booking['type'],
                     'category': booking['category'],
                     'contact': booking['contact'],
-                    'addr': booking['addr'],
-                    'is_start_time': True
+                    'addr': booking['addr']
                 }]
                 # Запись информации в БД на вторые полчаса, если это не тейпирование
                 if booking['category'].lower() != "тейпирование":
                     next_half_hour = this_hour + ":30" if this_minutes == "00" else str(int(this_hour) + 1) + ":00"
-                    try:
-                        data_booking_next_half_hour = data[booking["date"]][next_half_hour]
-                    except KeyError:
-                        data_booking_next_half_hour = "Error"
-                    if data_booking_next_half_hour:
+                    if data[booking["date"]][next_half_hour] or next_half_hour == "24:00" \
+                            or config.day_border[1][1] == 30 and int(this_hour) == config.day_border[1][0] \
+                            or config.day_border[1][1] == 0 and int(this_hour) == config.day_border[1][0] - 1 \
+                            and this_minutes == "30":
                         bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
                                                   text=booking['category'].capitalize() +
-                                                       ' занимает более получаса времени, выберите другое время из доступного')
+                                                       ' занимает более получаса времени, выберите другое время из доступного раньше')
                         return
+                    this_hour = next_half_hour[:2]
+                    this_minutes = next_half_hour[3:]
                     data[booking["date"]][next_half_hour] = [call.from_user.id, {
                         'type': booking['type'],
                         'category': booking['category'],
                         'contact': booking['contact'],
                         'addr': booking['addr']
                     }]
-
-                    this_hour = next_half_hour[:2]
-                    this_minutes = next_half_hour[3:]
-
-                if booking['type'].lower() == "очная":
-                    # Проверка, не является ли выбранная дата нижней границей по времени
-                    if call.data[5:] != str(config.day_border[0][0]) + ":" + str(config.day_border[0][1]):
-                        prev_half_hour = str(int(start_hour) - 1) + ":30" if start_minutes == "00" else start_hour + ":00"
-                        # Проверка, занят ли предшествующий получасовой интервал
-                        if data[booking["date"]][prev_half_hour]:
-                            if data[booking["date"]][prev_half_hour][1]['type'].lower() == "онлайн":
-                                bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
-                                                          text='Выбранные Вами полчаса потребуются на перемещение от предыдущего клиента. Пожалуйста, выберите другое время')
-                                return
-                        data[booking["date"]][prev_half_hour] = [call.from_user.id, {
-                            'type': booking['type'],
-                            'category': booking['category'],
-                            'contact': booking['contact'],
-                            'addr': booking['addr']
-                        }]
-                    next_half_hour = this_hour + ":30" if this_minutes == "00" else str(int(this_hour) + 1) + ":00"
-                    if next_half_hour != str(config.day_border[1][0]) + ":" + str(config.day_border[1][1]):
-                        if data[booking["date"]][next_half_hour]:
-                            if data[booking["date"]][next_half_hour][1]['type'].lower() == "онлайн":
-                                bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
-                                                          text='На дальнейшее время уже записан клиент, чтобы добраться к которому потребуются дополнительные полчаса после Вас. Пожалуйста, выберите время ранее или позже из доступного')
-                                return
+                # Запись информации в БД на дополнительные полчаса, если type="очная"
+                next_half_hour = this_hour + ":30" if this_minutes == "00" else str(int(this_hour) + 1) + ":00"
+                try:
+                    next_hour = str(int(this_hour) + 1) + this_minutes
+                    data_booking_next_hour_type = data[booking["date"]][next_hour]['type'].lower()
+                except KeyError:
+                    data_booking_next_hour_type = ""
+                if booking['type'].lower() == "очная" or data_booking_next_hour_type == "очная":
+                    if data[booking["date"]][next_half_hour] and booking['type'].lower() == "очная":
+                        bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                                  text='На дальнейшее время уже записан клиент, чтобы добраться к которому потребуются дополнительные полчаса после Вас. Пожалуйста, выберите время ранее или позже из доступного')
+                        return
+                    else:
                         data[booking["date"]][next_half_hour] = [call.from_user.id, {
                             'type': booking['type'],
                             'category': booking['category'],
@@ -526,7 +534,6 @@ def date_callback_handler(call):
                         }]
 
                 write_database(data, filename)
-
                 # Сделать подтверждение ->
                 inline_keyboard = telebot.types.InlineKeyboardMarkup()
                 inline_keyboard.row(types.InlineKeyboardButton("Изменить", callback_data="change"))
