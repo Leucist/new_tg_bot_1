@@ -442,8 +442,25 @@ def date_callback_handler(call):
             call.message.message_id,
             reply_markup=inline_keyboard
         )
-    elif call.data == "change":
-        bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text='Еще недоступно')
+    elif call.data == "change_data":
+        # Изменяет сообщение на выбор даты и дальше идет по порядку. Но не удаляет запись пользователя.
+        inline_keyboard = create_calendar()
+        bot.edit_message_text(
+            "Выберите дату консультации > ",
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=inline_keyboard
+        )
+    elif call.data == "cancel":
+        filename = "datebase.json"
+        with open(filename, "r", encoding="UTF-8") as database:
+            data = json.loads(database.read())
+            data[booking['date']] = []
+            write_database(data, filename)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            item = types.KeyboardButton("Записаться")
+            markup.add(item)
+            bot.send_message(call.message.chat.id, "Ваша запись успешно отменена.", reply_markup=markup)
     # При нажатии кнопки "<" или ">"
     elif "move" in call.data:
         month_diff = int(call.data[5:])
@@ -498,7 +515,8 @@ def date_callback_handler(call):
                 if booking['type'].lower() == "очная":
                     # Проверка, не является ли выбранная дата нижней границей по времени
                     if call.data[5:] != str(config.day_border[0][0]) + ":" + str(config.day_border[0][1]):
-                        prev_half_hour = str(int(start_hour) - 1) + ":30" if start_minutes == "00" else start_hour + ":00"
+                        prev_half_hour = str(
+                            int(start_hour) - 1) + ":30" if start_minutes == "00" else start_hour + ":00"
                         # Проверка, занят ли предшествующий получасовой интервал
                         if data[booking["date"]][prev_half_hour]:
                             if data[booking["date"]][prev_half_hour][1]['type'].lower() == "онлайн":
@@ -529,7 +547,8 @@ def date_callback_handler(call):
 
                 # Сделать подтверждение ->
                 inline_keyboard = telebot.types.InlineKeyboardMarkup()
-                inline_keyboard.row(types.InlineKeyboardButton("Изменить", callback_data="change"))
+                inline_keyboard.row(types.InlineKeyboardButton("Изменить дату", callback_data="change_date"),
+                                    types.InlineKeyboardButton("Отменить запись", callback_data="cancel"))
 
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
                 item = types.KeyboardButton("Записаться")
@@ -789,13 +808,6 @@ def initialisation(message):
     with open(filename, "r", encoding="UTF-8") as database:
         data = json.loads(database.read())
         if message.from_user.id not in data:
-            # Фильтр от ботов. По идее, бот боту написать сообщение не может, но пусть будет | UPD: Нет.
-            # if message.from_user.is_bot:
-            #     bot.send_message(message.chat.id, "Я с ботами не общаюсь : )", reply_markup=types.ReplyKeyboardRemove())
-            #     with open("black_list.json", "r", encoding="UTF-8") as black_list:
-            #         data = json.loads(black_list.read())
-            #         filename = "black_list.json"
-            #         black_id.append(message.from_user.id)
             data[message.from_user.id] = {"first_name": message.from_user.first_name,
                                           "last_name": message.from_user.last_name,
                                           "username": message.from_user.username}
