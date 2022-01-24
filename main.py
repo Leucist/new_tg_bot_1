@@ -15,10 +15,10 @@ GREEN_CIRCLE = "🟢"
 RED_CIRCLE = "🔴"
 
 # adm_functions = ['Вакансии', 'Черный список', 'Установить частоту оповещений', 'Рассылка', 'Провести опрос']
-adm_functions = ['Вакансии', 'Черный список', 'Просмотреть Базу Данных', 'Отправить сообщение-вопрос', 'Рассылка']
-vacancy_functions = ["Добавить вакансию", "Удалить вакансию", "Просмотреть текущий список вакансий"]
+adm_functions = ['Просмотреть записи', 'Черный список', 'Отправить сообщение-вопрос', 'Рассылка']
 black_list_functions = ['Добавить пользователя в черный список', 'Удалить пользователя из черного списка',
                         'Просмотреть черный список']
+
 booking = {}
 black_id = []
 admin_id = 1064282294
@@ -47,63 +47,64 @@ def admin(message):
                          reply_markup=markup)
 
 
-# admin_after
-
-# def admin_after(message):
-#     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-#     item = types.KeyboardButton("Записаться")
-#     markup.add(item)
-#     if message.from_user.id == admin_id:
-#         if message.text == "Рассылка":
-#             sent = bot.send_message(message.chat.id, "Какое сообщение Вы хотите разослать?",
-#                                     reply_markup=types.ReplyKeyboardRemove())
-#             bot.register_next_step_handler(sent, mailing)
-#         elif message.text == 'Черный список':
-#             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-#             for function in black_list_functions:
-#                 item = types.KeyboardButton(function)
-#                 markup.add(item)
-#             sent = bot.send_message(message.chat.id, "Что бы Вы хотели сделать?", reply_markup=markup)
-#             bot.register_next_step_handler(sent, admin_after)
-#         elif message.text == black_list_functions[0]:
-#             sent = bot.send_message(message.chat.id,
-#                                     "Введите данные пользователя, которого Вы хотите добавить в черный список: ",
-#                                     reply_markup=types.ReplyKeyboardRemove())
-#             bot.register_next_step_handler(sent, black_list_handler, 0)
-#         elif message.text == black_list_functions[1]:
-#             black_list_handler(message, 1)
-#         elif message.text == black_list_functions[2]:
-#             black_list_handler(message, 2)
-#         elif message.text == 'Просмотреть Базу Данных':
-#             show_database()
-#         elif message.text == 'Отправить сообщение-вопрос':
-#             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-#             item1 = types.KeyboardButton("Всем")
-#             item2 = types.KeyboardButton("Выбрать пользователя")
-#             markup.add(item1, item2)
-#             sent = bot.send_message(message.chat.id,
-#                                     "Разослать опрос всем пользователям или выбрать конкретного пользователя?",
-#                                     reply_markup=markup)
-#             bot.register_next_step_handler(sent, admin_after)
-#         elif message.text.lower() == 'всем':
-#             sent = bot.send_message(message.chat.id, "Опрос на какую тему Вы хотите провести?",
-#                                     reply_markup=types.ReplyKeyboardRemove())
-#             bot.register_next_step_handler(sent, mailing, arguments=True)
-#         elif message.text == 'Выбрать пользователя':
-#             new_message = ""
-#             with open("user_base.json", "r", encoding="UTF-8") as database:
-#                 data = json.loads(database.read())
-#                 for s_user in data:
-#                     new_message += "Имя: " + s_user['first_name'] + ", id: " + str(s_user) + ";\n"
-#             bot.send_message(message.chat.id, new_message, reply_markup=types.ReplyKeyboardRemove())
-#             sent = bot.send_message(message.chat.id, "Выберите желаемого пользователя и отправьте его id",
-#                                     reply_markup=types.ReplyKeyboardRemove())
-#             bot.register_next_step_handler(sent, q_user)
-#         elif message.text == "Назад ➤":
-#             bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-#     else:
-#         bot.send_message(message.chat.id, "У Вас недостаточно прав для использования этой функции.",
-#                          reply_markup=markup)
+def admin_after(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    item = types.KeyboardButton("Записаться")
+    markup.add(item)
+    if message.from_user.id == admin_id:
+        if message.text == "Просмотреть записи":
+            sent = bot.send_message(message.chat.id,
+                                    "На какой месяц Вы хотели бы просмотреть записи?\nОтвет пришлите в формате мм.гг (Например: 12.22)",
+                                    reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(sent, check_records)
+        elif message.text == "Рассылка":
+            sent = bot.send_message(message.chat.id, "Какое сообщение Вы хотите разослать?",
+                                    reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(sent, mailing)
+        elif message.text == 'Черный список':
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            for function in black_list_functions:
+                item = types.KeyboardButton(function)
+                markup.add(item)
+            sent = bot.send_message(message.chat.id, "Что бы Вы хотели сделать?", reply_markup=markup)
+            bot.register_next_step_handler(sent, admin_after)
+        elif message.text == black_list_functions[0]:
+            sent = bot.send_message(message.chat.id,
+                                    "Введите данные пользователя, которого Вы хотите добавить в черный список: ",
+                                    reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(sent, black_list_handler, 0)
+        elif message.text == black_list_functions[1]:
+            black_list_handler(message, 1)
+        elif message.text == black_list_functions[2]:
+            black_list_handler(message, 2)
+        elif message.text == 'Отправить сообщение-вопрос':
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            item1 = types.KeyboardButton("Всем")
+            item2 = types.KeyboardButton("Выбрать пользователя")
+            markup.add(item1, item2)
+            sent = bot.send_message(message.chat.id,
+                                    "Разослать опрос всем пользователям или выбрать конкретного пользователя?",
+                                    reply_markup=markup)
+            bot.register_next_step_handler(sent, admin_after)
+        elif message.text.lower() == 'всем':
+            sent = bot.send_message(message.chat.id, "Опрос на какую тему Вы хотите провести?",
+                                    reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(sent, mailing, arguments=True)
+        elif message.text == 'Выбрать пользователя':
+            new_message = ""
+            with open("user_base.json", "r", encoding="UTF-8") as database:
+                data = json.loads(database.read())
+                for s_user in data:
+                    new_message += "Имя: " + data[s_user]['first_name'] + ", id: " + str(s_user) + ";\n"
+            bot.send_message(message.chat.id, new_message, reply_markup=types.ReplyKeyboardRemove())
+            sent = bot.send_message(message.chat.id, "Выберите желаемого пользователя и отправьте его id",
+                                    reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(sent, q_user)
+        elif message.text == "Назад ➤":
+            bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+    else:
+        bot.send_message(message.chat.id, "У Вас недостаточно прав для использования этой функции.",
+                         reply_markup=markup)
 
 
 # @bot.message_handler(commands=['start'], func=lambda message: message.chat.id not in black_id)
@@ -715,91 +716,123 @@ def black_list_handler(message, direction):
                 bot.register_next_step_handler(sent, admin_after)
 
 
-# mailing
+def check_records(message):
+    month = message.text[:2]
+    if month[-1] == '.':
+        month = month[0]
+        year = message.text[2:]
+    else:
+        month = month
+        year = message.text[3:]
+    filename = "datebase.json"
+    with open(filename, "r", encoding="UTF-8") as datebase:
+        data = json.loads(datebase.read())
+        message = ""
+        for date in data:
+            if date[-2:] == year:
+                dot_pos = date.find('.') + 1
+                d_month = date[dot_pos:dot_pos+2]
+                d_month = d_month[0] if d_month[-1] == '.' else d_month
+                if d_month == month:
+                    if data[date]:
+                        for timeshift in data[date]:
+                            if "is_start_time" in data[date][timeshift]:
+                                type_category_msg = data[date][timeshift]['type'].capitalize() + " " + \
+                                                    data[date][timeshift]['category'] if \
+                                    data[date][timeshift]['category'].lower() != "тейпирование" else "Тейпирование"
+                                addr_msg = '\nАдрес: ' + data[date][timeshift]['addr'] if \
+                                    data[date][timeshift]['addr'] is not None else ""
+                                message += '--> ' + date + '\nВремя: ' + timeshift + '\n' + type_category_msg + \
+                                           '\nКонтакт: ' + data[date][timeshift]['contact'] + addr_msg
+        else:
+            bot.send_message(message.chat.id,
+                             "Ничего не найдено.\nПроверьте правильность введенных данных и попробуйте снова",
+                             reply_markup=types.ReplyKeyboardRemove())
 
-# def mailing(message, arguments=None, user_id=None):
-#     markup = back_markup() - Нет
-#     with open("user_base.json", "r", encoding="UTF-8") as database:
-#         data = json.loads(database.read())
-#         if arguments:
-#             if user_id is not None:
-#                 try:
-#                     sent = bot.send_message(user_id, message.text, reply_markup=markup)
-#                     bot.register_next_step_handler(sent, feedback, message.text)
-#                 except ApiException:
-#                     bot.send_message(admin_id,
-#                                      "Вопрос не был отправлен, т.к. пользователь заблокировал бота или отправка сообщений ему невозможна.",
-#                                      reply_markup=markup)
-#                 finally:
-#                     return 0
-#             for person in data['users']:
-#                 try:
-#                     if person['id'] != message.from_user.id:
-#                         sent = bot.send_message(person['id'], message.text, reply_markup=markup)
-#                         bot.register_next_step_handler(sent, feedback, message.text)
-#                     else:
-#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-#                 except ApiException:
-#                     continue
-#                 else:
-#                     continue
-#             return 0
-#         if message.content_type == 'text':
-#             for person in data['users']:
-#                 try:
-#                     if person['id'] != message.from_user.id:
-#                         bot.send_message(person['id'], message.text, reply_markup=markup)
-#                     else:
-#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-#                 except ApiException:
-#                     continue
-#                 else:
-#                     continue
-#             bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
-#         elif message.content_type == 'photo':
-#             raw = message.photo[2].file_id
-#             name = "mailing.jpg"
-#             file_info = bot.get_file(raw)
-#             downloaded_file = bot.download_file(file_info.file_path)
-#             with open(name, "wb") as photo:
-#                 photo.write(downloaded_file)
-#             for person in data['users']:
-#                 photo = open(name, "rb")
-#                 try:
-#                     if person['id'] != message.from_user.id:
-#                         bot.send_photo(person['id'], photo, reply_markup=markup)
-#                     else:
-#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-#                 except ApiException:
-#                     photo.close()
-#                     continue
-#                 else:
-#                     photo.close()
-#                     continue
-#             bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
-#         elif message.content_type == 'document':
-#             raw = message.document.file_id
-#             name = "mailing" + message.document.file_name[-4:]
-#             file_info = bot.get_file(raw)
-#             downloaded_file = bot.download_file(file_info.file_path)
-#             with open(name, "wb") as document:
-#                 document.write(downloaded_file)
-#             for person in data['users']:
-#                 document = open(name, "rb")
-#                 try:
-#                     if person['id'] != message.from_user.id:
-#                         bot.send_document(person['id'], document, reply_markup=markup)
-#                     else:
-#                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
-#                 except ApiException:
-#                     document.close()
-#                     continue
-#                 else:
-#                     document.close()
-#                     continue
-#             bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
-#         else:
-#             bot.send_message(message.chat.id, "Неподдерживаемый тип файла", reply_markup=markup)
+
+def mailing(message, arguments=None, user_id=None):
+    markup = back_markup() - Нет
+    with open("user_base.json", "r", encoding="UTF-8") as database:
+        data = json.loads(database.read())
+        if arguments:
+            if user_id is not None:
+                try:
+                    sent = bot.send_message(user_id, message.text, reply_markup=markup)
+                    bot.register_next_step_handler(sent, feedback, message.text)
+                except ApiException:
+                    bot.send_message(admin_id,
+                                     "Вопрос не был отправлен, т.к. пользователь заблокировал бота или отправка сообщений ему невозможна.",
+                                     reply_markup=markup)
+                finally:
+                    return 0
+            for person in data['users']:
+                try:
+                    if person['id'] != message.from_user.id:
+                        sent = bot.send_message(person['id'], message.text, reply_markup=markup)
+                        bot.register_next_step_handler(sent, feedback, message.text)
+                    else:
+                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+                except ApiException:
+                    continue
+                else:
+                    continue
+            return 0
+        if message.content_type == 'text':
+            for person in data:
+                try:
+                    if person != message.from_user.id:
+                        bot.send_message(person, message.text, reply_markup=markup)
+                    else:
+                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+                except ApiException:
+                    continue
+                else:
+                    continue
+            bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
+        elif message.content_type == 'photo':
+            raw = message.photo[2].file_id
+            name = "mailing.jpg"
+            file_info = bot.get_file(raw)
+            downloaded_file = bot.download_file(file_info.file_path)
+            with open(name, "wb") as photo:
+                photo.write(downloaded_file)
+            for person in data:
+                photo = open(name, "rb")
+                try:
+                    if person != message.from_user.id:
+                        bot.send_photo(person, photo, reply_markup=markup)
+                    else:
+                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+                except ApiException:
+                    photo.close()
+                    continue
+                else:
+                    photo.close()
+                    continue
+            bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
+        elif message.content_type == 'document':
+            raw = message.document.file_id
+            name = "mailing" + message.document.file_name[-4:]
+            file_info = bot.get_file(raw)
+            downloaded_file = bot.download_file(file_info.file_path)
+            with open(name, "wb") as document:
+                document.write(downloaded_file)
+            for person in data:
+                document = open(name, "rb")
+                try:
+                    if person != message.from_user.id:
+                        bot.send_document(person, document, reply_markup=markup)
+                    else:
+                        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
+                except ApiException:
+                    document.close()
+                    continue
+                else:
+                    document.close()
+                    continue
+            bot.send_message(message.chat.id, "Разослано.", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, "Неподдерживаемый тип файла", reply_markup=markup)
 
 
 def feedback(message, question):
