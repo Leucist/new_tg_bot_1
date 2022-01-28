@@ -54,7 +54,7 @@ def admin_after(message):
     if message.from_user.id == admin_id:
         if message.text == "Просмотреть записи":
             sent = bot.send_message(message.chat.id,
-                                    "На какой месяц Вы хотели бы просмотреть записи?\nОтвет пришлите в формате мм.гг (Например: 12.22)",
+                                    "На какой месяц Вы хотели бы просмотреть записи?\nОтвет пришлите числом в формате мм.гг (Например: 12.22)",
                                     reply_markup=types.ReplyKeyboardRemove())
             bot.register_next_step_handler(sent, check_records)
         elif message.text == "Рассылка":
@@ -305,7 +305,8 @@ def chat(message):
             item1 = types.KeyboardButton("Консультация")
             item2 = types.KeyboardButton("Тренировка")
             item3 = types.KeyboardButton("Тейпирование")
-            markup.add(item1, item2, item3)
+            item4 = types.KeyboardButton("Отмена")
+            markup.add(item1, item2, item3, item4)
             global booking
             booking = {}
             sent = bot.send_message(message.chat.id,
@@ -340,6 +341,11 @@ def choose_category(message):
                                 'Укажите Ваш адрес, где будет проходить консультация',
                                 reply_markup=markup)
         bot.register_next_step_handler(sent, choose_addr)
+    elif message.text.lower() == "отмена":
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item = types.KeyboardButton("Записаться")
+        markup.add(item)
+        bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
     else:
         sent = bot.send_message(message.chat.id,
                                 'Некорректный формат введенных данных, отправьте сообщение с одним словом "Консультация", "Тренировка" либо "Тейпирование"')
@@ -727,27 +733,47 @@ def check_records(message):
     filename = "datebase.json"
     with open(filename, "r", encoding="UTF-8") as datebase:
         data = json.loads(datebase.read())
-        message = ""
+        message_s = ""
+        cliche = {}
+        if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
+                config.day_border[0][1] == 30 and config.day_border[1][1] == 30):
+            amount = [config.day_border[1][0] - config.day_border[0][0], 0]
+        elif config.day_border[0][1] == 0 and config.day_border[1][1] == 30:
+            amount = [config.day_border[1][0] - config.day_border[0][0], 30]
+        elif config.day_border[0][1] == 30 and config.day_border[1][1] == 0:
+            amount = [config.day_border[1][0] - config.day_border[0][0] - 1, 30]
+        for j in range(amount[0] * 2 + int(amount[1] / 30)):
+            new_minutes = config.day_border[0][1] + j * 30
+            if new_minutes % 60 == 0:
+                new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                new_minutes = "00"
+            elif new_minutes % 30 == 0:
+                new_hour = str(config.day_border[0][0] + new_minutes // 60)
+                new_minutes = "30"
+            if len(new_hour) < 2:
+                new_hour = "0" + new_hour
+            cliche[new_hour + ":" + new_minutes] = []
+
         for date in data:
             if date[-2:] == year:
                 dot_pos = date.find('.') + 1
                 d_month = date[dot_pos:dot_pos+2]
                 d_month = d_month[0] if d_month[-1] == '.' else d_month
-                if d_month == month:
-                    if data[date]:
+                if int(d_month) == int(month):
+                    if data[date] != cliche:
                         for timeshift in data[date]:
-                            if "is_start_time" in data[date][timeshift]:
-                                type_category_msg = data[date][timeshift]['type'].capitalize() + " " + \
-                                                    data[date][timeshift]['category'] if \
-                                    data[date][timeshift]['category'].lower() != "тейпирование" else "Тейпирование"
-                                addr_msg = '\nАдрес: ' + data[date][timeshift]['addr'] if \
-                                    data[date][timeshift]['addr'] is not None else ""
-                                message += '--> ' + date + '\nВремя: ' + timeshift + '\n' + type_category_msg + \
-                                           '\nКонтакт: ' + data[date][timeshift]['contact'] + addr_msg
-        else:
-            bot.send_message(message.chat.id,
-                             "Ничего не найдено.\nПроверьте правильность введенных данных и попробуйте снова",
-                             reply_markup=types.ReplyKeyboardRemove())
+                            if len(data[date][timeshift]) > 0:
+                                if "is_start_time" in data[date][timeshift][1]:
+                                    type_category_msg = data[date][timeshift][1]['type'].capitalize() + " " + \
+                                                        data[date][timeshift][1]['category'] if \
+                                        data[date][timeshift][1]['category'].lower() != "тейпирование" else "Тейпирование"
+                                    addr_msg = '\nАдрес: ' + data[date][timeshift][1]['addr'] if \
+                                        data[date][timeshift][1]['addr'] is not None else ""
+                                    message_s += '--> ' + date + '\nВремя: ' + timeshift + '\n' + type_category_msg + \
+                                               '\nКонтакт: ' + data[date][timeshift][1]['contact'] + addr_msg + '\n\n'
+        if message_s == "":
+            message_s = "Ничего не найдено.\nПроверьте правильность введенных данных и попробуйте снова"
+        bot.send_message(message.chat.id, message_s, reply_markup=types.ReplyKeyboardRemove())
 
 
 def mailing(message, arguments=None, user_id=None):
