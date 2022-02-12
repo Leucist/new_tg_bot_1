@@ -23,7 +23,7 @@ booking = {
     "type": None,
     "category": None,
     "contact": None,
-    "addr": None
+    "addr": []
 }
 black_id = []
 admin_id = 1064282294
@@ -305,19 +305,19 @@ def create_calendar(month_diff=0):
 def chat(message):
     initialisation(message)
     if message.chat.type == 'private':
-        if message.text.lower() == 'привет' or message.text.lower() == 'записаться' or message.text == '/start':
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            item1 = types.KeyboardButton("Консультация")
-            item2 = types.KeyboardButton("Тренировка")
-            item3 = types.KeyboardButton("Тейпирование")
-            item4 = types.KeyboardButton("Отмена")
-            markup.add(item1, item2, item3, item4)
-            global booking
-            booking = {}
-            sent = bot.send_message(message.chat.id,
-                                    "Привет, <b>{0.first_name}</b>!\nЯ бот-помощник Fitandbaby. Я помогу тебе выбрать и записаться на услугу от Fitandbaby.\nДля начала, выберите услугу из предложенных".format(
-                                        message.from_user), parse_mode='html', reply_markup=markup)
-            bot.register_next_step_handler(sent, choose_category)
+        # if message.text.lower() == 'привет' or message.text.lower() == 'записаться' or message.text == '/start':
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item1 = types.KeyboardButton("Консультация")
+        item2 = types.KeyboardButton("Тренировка")
+        item3 = types.KeyboardButton("Тейпирование")
+        item4 = types.KeyboardButton("Отмена")
+        markup.add(item1, item2, item3, item4)
+        global booking
+        booking = {}
+        sent = bot.send_message(message.chat.id,
+                                "Привет, <b>{0.first_name}</b>!\nЯ бот-помощник Fitandbaby. Я помогу тебе выбрать и записаться на услугу от Fitandbaby.\nДля начала, выберите услугу из предложенных".format(
+                                    message.from_user), parse_mode='html', reply_markup=markup)
+        bot.register_next_step_handler(sent, choose_category)
 
 
 def choose_category(message):
@@ -388,7 +388,19 @@ def choose_type(message):
 
 def choose_addr(message):
     global booking
-    booking['addr'] = message.text
+    if message.content_type == "location":
+        booking['addr'] = ['location', message.location.latitude, message.location.longitude]
+    elif message.text is not None:
+        booking['addr'] = ['addr', message.text]
+    else:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item = types.KeyboardButton("Отправить текущее местоположение", request_location=True)
+        markup.add(item)
+        sent = bot.send_message(message.chat.id,
+                                'Ошибка, неверный формат сообщения. Попробуйте снова.\n\nУкажите Ваш адрес, где будет проходить консультация',
+                                reply_markup=markup)
+        bot.register_next_step_handler(sent, choose_addr)
+        return 1
     bot.send_message(message.chat.id, "Принято.")
     sent = bot.send_message(message.chat.id, "Отправьте свой логин в Instagram для связи",
                             reply_markup=types.ReplyKeyboardRemove())
@@ -490,7 +502,7 @@ def date_callback_handler(call):
     # При нажатии на кнопку со временем
     elif "time" in call.data:
         # Проверка, пустое booking или нет. Чтобы не ложился бот из-за ошибки и не записывал пустое в БД.
-        if booking == {"type": None, "category": None, "contact": None, "addr": None}:
+        if booking == {"type": None, "category": None, "contact": None, "addr": []}:
             return 666
         filename = "datebase.json"
         with open(filename, "r", encoding="UTF-8") as datebase:
@@ -587,12 +599,19 @@ def date_callback_handler(call):
 
                 type_category_msg = booking['type'].capitalize() + " " + booking['category'] if \
                     booking['category'].lower() != "тейпирование" else "Тейпирование"
-                addr_msg = '\n-> Адрес: ' + booking['addr'] if booking['addr'] is not None else ""
-
-                bot.send_message(admin_id, 'Пользователь ' + call.from_user.first_name + ' записался на\n-> "'
-                                 + type_category_msg + '",\n-> ' + booking['date']
+                s_msg = 'Пользователь ' + call.from_user.first_name + ' записался на\n-> "' \
+                                 + type_category_msg + '",\n-> ' + booking['date'] \
                                  + '\n-> Время: ' + call.data[5:] + '\n-> Instagram: ' + booking['contact']
-                                 + addr_msg)
+                # addr_msg = '\n-> Адрес: ' + booking['addr'] if booking['addr'] is not None else ""
+                if len(booking['addr']) > 0:
+                    if booking['addr'][0] == 'addr':
+                        s_msg += '\n-> Адрес: ' + booking['addr'][1]
+                        bot.send_message(admin_id, s_msg)
+                    elif booking['addr'][0] == 'location':
+                        bot.send_message(admin_id, s_msg)
+                        bot.send_location(admin_id, booking['addr'][1], booking['addr'][2])
+                else:
+                    bot.send_message(admin_id, s_msg)
 
                 bot.edit_message_text(
                     'Вы успешно записались\n-> "' + type_category_msg +
@@ -639,16 +658,66 @@ def delete_record(filename, call):
     global booking
     with open(filename, "r", encoding="UTF-8") as datebase:
         data = json.loads(datebase.read())
-        for time_taken in booking['time']:
-            data[booking['date']][time_taken] = []
-        write_database(data, filename)
-        type_category_msg = booking['type'].capitalize() + " " + booking['category'] if \
-            booking['category'].lower() != "тейпирование" else "Тейпирование"
-        addr_msg = '\n-> Адрес: ' + booking['addr'] if booking['addr'] is not None else ""
-        bot.send_message(admin_id, 'Пользователь ' + call.from_user.first_name + ' отменил свою запись на\n-> "'
-                         + type_category_msg + '",\n-> ' + booking['date']
-                         + '\n-> Время: ' + call.data[5:] + '\n-> Instagram: ' + booking['contact']
-                         + addr_msg)
+        try:
+            for time_taken in booking['time']:
+                data[booking['date']][time_taken] = []
+            write_database(data, filename)
+            type_category_msg = booking['type'].capitalize() + " " + booking['category'] if \
+                booking['category'].lower() != "тейпирование" else "Тейпирование"
+            s_msg = 'Пользователь ' + call.from_user.first_name + ' отменил свою запись на\n-> "' \
+                    + type_category_msg + '",\n-> ' + booking['date'] \
+                    + '\n-> Время: ' + call.data[5:] + '\n-> Instagram: ' + booking['contact']
+            if len(booking['addr']) > 0:
+                if booking['addr'][0] == 'addr':
+                    s_msg += '\n-> Адрес: ' + booking['addr'][1]
+                    bot.send_message(admin_id, s_msg)
+                elif booking['addr'][0] == 'location':
+                    bot.send_message(admin_id, s_msg)
+                    bot.send_location(admin_id, booking['addr'][1], booking['addr'][2])
+            else:
+                bot.send_message(admin_id, s_msg)
+        except KeyError:
+            records = {}
+            for date in data:
+                for timeshift in data[date]:
+                    if data[date][timeshift]:
+                        if "is_start_time" in data[date][timeshift][1]:
+                            if data[date][timeshift][0] == call.message.chat.id:
+                                records[date] = [timeshift, data[date][timeshift][1]]
+            if records is None:
+                bot.answer_callback_query(call.id, "Ничего не найдено. Вы ни на что не записаны", show_alert=True)
+            else:
+                s_msg = ""
+                for record in records:
+                    type_category_msg = records[record][1]['type'].capitalize() + " " + records[record][1]['category'] if \
+                        records[record][1]['category'].lower() != "тейпирование" else "Тейпирование"
+                    s_msg += "--> " + record + " " + records[record][0] + "\n" + type_category_msg + "\n\n"
+                bot.send_message(call.message.chat.id, s_msg)
+                sent = bot.send_message(call.message.chat.id, "Выберите запись, которую Вы собираетесь отменить. Скопируйте и отправьте мне дату из сообщения, так как там, число с точками после стрелочки вначале.\nВнимание! Это удалит все записи на выбранный день, если у Вас их несколько.")
+                bot.register_next_step_handler(sent, delete_chosen_record)
+
+
+def delete_chosen_record(message):
+    filename = "datebase.json"
+    records_deleted = []
+    try:
+        # date, timeshift = message.text.split(" ")
+        date = message.text.strip()
+        with open(filename, "r", encoding="UTF-8") as datebase:
+            data = json.loads(datebase.read())
+            for time_taken in data[date]:
+                if time_taken:
+                    if data[date][time_taken][0] == message.chat.id:
+                        if "is_start_time" in data[date][time_taken][1]:
+                            records_deleted.append(date + " " + time_taken)
+                        data[date][time_taken] = []
+            write_database(data, filename)
+            s_msg = "Пользователь " + message.from_user.first_name + " отменил все свои записи на " + date + " число.\nОтмененные записи:"
+            for record in records_deleted:
+                s_msg += "\n-> " + record
+            bot.send_message(admin_id, s_msg)
+    except (ValueError, KeyError):
+        bot.send_message(message.chat.id, "Ошибка. Неверный формат указанной даты")
 
 
 # def black_list_handler(message, direction):
@@ -742,6 +811,7 @@ def check_records(message):
     with open(filename, "r", encoding="UTF-8") as datebase:
         data = json.loads(datebase.read())
         message_s = ""
+        sent_some = False
         cliche = {}
         if (config.day_border[0][1] == 0 and config.day_border[1][1] == 0) or (
                 config.day_border[0][1] == 30 and config.day_border[1][1] == 30):
@@ -775,12 +845,26 @@ def check_records(message):
                                     type_category_msg = data[date][timeshift][1]['type'].capitalize() + " " + \
                                                         data[date][timeshift][1]['category'] if \
                                         data[date][timeshift][1]['category'].lower() != "тейпирование" else "Тейпирование"
-                                    addr_msg = '\nАдрес: ' + data[date][timeshift][1]['addr'] if \
-                                        data[date][timeshift][1]['addr'] is not None else ""
+
                                     message_s += '--> ' + date + '\nВремя: ' + timeshift + '\n' + type_category_msg + \
-                                               '\nКонтакт: ' + data[date][timeshift][1]['contact'] + addr_msg + '\n\n'
-        if message_s == "":
+                                                 '\nКонтакт: ' + data[date][timeshift][1]['contact']
+
+                                    if len(data[date][timeshift][1]['addr']) > 0:
+                                        if data[date][timeshift][1]['addr'][0] == 'addr':
+                                            message_s += '\n-> Адрес: ' + data[date][timeshift][1]['addr'][1] + '\n\n'
+                                        elif data[date][timeshift][1]['addr'][0] == 'location':
+                                            bot.send_message(message.chat.id, message_s)
+                                            bot.send_location(message.chat.id, data[date][timeshift][1]['addr'][1],
+                                                              data[date][timeshift][1]['addr'][2])
+                                            message_s = ""
+                                            sent_some = True
+                                    else:
+                                        message_s += '\n\n'
+
+        if message_s == "" and sent_some is False:
             message_s = "Ничего не найдено.\nПроверьте правильность введенных данных и попробуйте снова"
+        elif message_s == "":
+            return 0
         bot.send_message(message.chat.id, message_s, reply_markup=types.ReplyKeyboardRemove())
 
 
