@@ -15,11 +15,16 @@ GREEN_CIRCLE = "🟢"
 RED_CIRCLE = "🔴"
 
 # adm_functions = ['Вакансии', 'Черный список', 'Установить частоту оповещений', 'Рассылка', 'Провести опрос']
-adm_functions = ['Просмотреть записи', 'Черный список', 'Отправить сообщение-вопрос', 'Рассылка']
+adm_functions = ['Просмотреть записи', 'Отправить сообщение-вопрос', 'Рассылка']
 black_list_functions = ['Добавить пользователя в черный список', 'Удалить пользователя из черного списка',
                         'Просмотреть черный список']
 
-booking = {}
+booking = {
+    "type": None,
+    "category": None,
+    "contact": None,
+    "addr": None
+}
 black_id = []
 admin_id = 1064282294
 
@@ -61,22 +66,22 @@ def admin_after(message):
             sent = bot.send_message(message.chat.id, "Какое сообщение Вы хотите разослать?",
                                     reply_markup=types.ReplyKeyboardRemove())
             bot.register_next_step_handler(sent, mailing)
-        elif message.text == 'Черный список':
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            for function in black_list_functions:
-                item = types.KeyboardButton(function)
-                markup.add(item)
-            sent = bot.send_message(message.chat.id, "Что бы Вы хотели сделать?", reply_markup=markup)
-            bot.register_next_step_handler(sent, admin_after)
-        elif message.text == black_list_functions[0]:
-            sent = bot.send_message(message.chat.id,
-                                    "Введите данные пользователя, которого Вы хотите добавить в черный список: ",
-                                    reply_markup=types.ReplyKeyboardRemove())
-            bot.register_next_step_handler(sent, black_list_handler, 0)
-        elif message.text == black_list_functions[1]:
-            black_list_handler(message, 1)
-        elif message.text == black_list_functions[2]:
-            black_list_handler(message, 2)
+        # elif message.text == 'Черный список':
+        #     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        #     for function in black_list_functions:
+        #         item = types.KeyboardButton(function)
+        #         markup.add(item)
+        #     sent = bot.send_message(message.chat.id, "Что бы Вы хотели сделать?", reply_markup=markup)
+        #     bot.register_next_step_handler(sent, admin_after)
+        # elif message.text == black_list_functions[0]:
+        #     sent = bot.send_message(message.chat.id,
+        #                             "Введите данные пользователя, которого Вы хотите добавить в черный список: ",
+        #                             reply_markup=types.ReplyKeyboardRemove())
+        #     bot.register_next_step_handler(sent, black_list_handler, 0)
+        # elif message.text == black_list_functions[1]:
+        #     black_list_handler(message, 1)
+        # elif message.text == black_list_functions[2]:
+        #     black_list_handler(message, 2)
         elif message.text == 'Отправить сообщение-вопрос':
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             item1 = types.KeyboardButton("Всем")
@@ -484,6 +489,9 @@ def date_callback_handler(call):
                                           reply_markup=inline_keyboard)
     # При нажатии на кнопку со временем
     elif "time" in call.data:
+        # Проверка, пустое booking или нет. Чтобы не ложился бот из-за ошибки и не записывал пустое в БД.
+        if booking == {"type": None, "category": None, "contact": None, "addr": None}:
+            return 666
         filename = "datebase.json"
         with open(filename, "r", encoding="UTF-8") as datebase:
             data = json.loads(datebase.read())
@@ -643,83 +651,83 @@ def delete_record(filename, call):
                          + addr_msg)
 
 
-def black_list_handler(message, direction):
-    global past_black_user
-    if direction == 0:
-        with open("user_base.json", "r", encoding="UTF-8") as database:
-            data = json.loads(database.read())
-            try:
-                search_param = int(message.text)
-            except ValueError:
-                search_param = message.text
-                place = search_param.find("@")
-                search_param = search_param[place + 1:]
-            finally:
-                i = 0
-                for s_user in data['users']:
-                    if s_user['id'] == search_param or s_user['username'] == search_param:
-                        new_black_user = data['users'][i]
-                        del data['users'][i]
-                        data['items'] -= 1
-                        write_database(data, "user_base.json")
-                        with open("black_list.json", "r", encoding="UTF-8") as blackList:
-                            data = json.loads(blackList.read())
-                            black_id.append(new_black_user['id'])
-                            data['users'].append(new_black_user)
-                            all_data = {"items": data['items'] + 1, "users": data['users']}
-                            write_database(all_data, "black_list.json")
-                        bot.send_message(message.chat.id, "Сделано!", reply_markup=types.ReplyKeyboardRemove())
-                        return
-                    i += 1
-    if message.text == "Назад ➤":
-        admin(message)
-        return -1
-    else:
-        with open("black_list.json", "r", encoding="UTF-8") as database:
-            data = json.loads(database.read())
-            if direction == 5:
-                data['items'] = data['items'] - 1
-                try:
-                    obj_id = int(message.text)
-                except ValueError:
-                    bot.send_message(message.chat.id, "Недопустимое значение идентификатора.",
-                                     reply_markup=types.ReplyKeyboardRemove())
-                    return 1
-                i = 0
-                for obj in data['users']:
-                    if obj['id'] == obj_id:
-                        past_black_user = data['users'][i]
-                        del data['users'][i]
-                        break
-                    i += 1
-                write_database(data, "black_list.json")
-                with open("user_base.json", "r", encoding="UTF-8") as white_list_base:
-                    data = json.loads(white_list_base.read())
-                    data['items'] = data['items'] + 1
-                    data['users'].append(past_black_user)
-                    write_database(data, "user_base.json")
-                bot.send_message(message.chat.id, "Готово!", reply_markup=types.ReplyKeyboardRemove())
-                return 0
-            for obj in data['users']:
-                bot.send_message(message.chat.id, "id: " + str(obj['id']) + ". Имя: " + obj["first_name"],
-                                 reply_markup=types.ReplyKeyboardRemove())
-            if direction == 1:
-                markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-                item = types.KeyboardButton("Назад ➤")
-                markup.add(item)
-                sent = bot.send_message(message.chat.id, "Выберите пользователя, которого хотите удалить (id)",
-                                        reply_markup=markup)
-                bot.register_next_step_handler(sent, black_list_handler, 5)
-            else:
-                markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-                for function in adm_functions:
-                    item = types.KeyboardButton(function)
-                    markup.add(item)
-                item = types.KeyboardButton("Назад ➤")
-                markup.add(item)
-                sent = bot.send_message(message.chat.id, "Полный список доступных пользователей ↑",
-                                        reply_markup=markup)
-                bot.register_next_step_handler(sent, admin_after)
+# def black_list_handler(message, direction):
+#     global past_black_user
+#     if direction == 0:
+#         with open("user_base.json", "r", encoding="UTF-8") as database:
+#             data = json.loads(database.read())
+#             try:
+#                 search_param = int(message.text)
+#             except ValueError:
+#                 search_param = message.text
+#                 place = search_param.find("@")
+#                 search_param = search_param[place + 1:]
+#             finally:
+#                 i = 0
+#                 for s_user in data['users']:
+#                     if s_user['id'] == search_param or s_user['username'] == search_param:
+#                         new_black_user = data['users'][i]
+#                         del data['users'][i]
+#                         data['items'] -= 1
+#                         write_database(data, "user_base.json")
+#                         with open("black_list.json", "r", encoding="UTF-8") as blackList:
+#                             data = json.loads(blackList.read())
+#                             black_id.append(new_black_user['id'])
+#                             data['users'].append(new_black_user)
+#                             all_data = {"items": data['items'] + 1, "users": data['users']}
+#                             write_database(all_data, "black_list.json")
+#                         bot.send_message(message.chat.id, "Сделано!", reply_markup=types.ReplyKeyboardRemove())
+#                         return
+#                     i += 1
+#     if message.text == "Назад ➤":
+#         admin(message)
+#         return -1
+#     else:
+#         with open("black_list.json", "r", encoding="UTF-8") as database:
+#             data = json.loads(database.read())
+#             if direction == 5:
+#                 data['items'] = data['items'] - 1
+#                 try:
+#                     obj_id = int(message.text)
+#                 except ValueError:
+#                     bot.send_message(message.chat.id, "Недопустимое значение идентификатора.",
+#                                      reply_markup=types.ReplyKeyboardRemove())
+#                     return 1
+#                 i = 0
+#                 for obj in data['users']:
+#                     if obj['id'] == obj_id:
+#                         past_black_user = data['users'][i]
+#                         del data['users'][i]
+#                         break
+#                     i += 1
+#                 write_database(data, "black_list.json")
+#                 with open("user_base.json", "r", encoding="UTF-8") as white_list_base:
+#                     data = json.loads(white_list_base.read())
+#                     data['items'] = data['items'] + 1
+#                     data['users'].append(past_black_user)
+#                     write_database(data, "user_base.json")
+#                 bot.send_message(message.chat.id, "Готово!", reply_markup=types.ReplyKeyboardRemove())
+#                 return 0
+#             for obj in data['users']:
+#                 bot.send_message(message.chat.id, "id: " + str(obj['id']) + ". Имя: " + obj["first_name"],
+#                                  reply_markup=types.ReplyKeyboardRemove())
+#             if direction == 1:
+#                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#                 item = types.KeyboardButton("Назад ➤")
+#                 markup.add(item)
+#                 sent = bot.send_message(message.chat.id, "Выберите пользователя, которого хотите удалить (id)",
+#                                         reply_markup=markup)
+#                 bot.register_next_step_handler(sent, black_list_handler, 5)
+#             else:
+#                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#                 for function in adm_functions:
+#                     item = types.KeyboardButton(function)
+#                     markup.add(item)
+#                 item = types.KeyboardButton("Назад ➤")
+#                 markup.add(item)
+#                 sent = bot.send_message(message.chat.id, "Полный список доступных пользователей ↑",
+#                                         reply_markup=markup)
+#                 bot.register_next_step_handler(sent, admin_after)
 
 
 def check_records(message):
@@ -777,7 +785,9 @@ def check_records(message):
 
 
 def mailing(message, arguments=None, user_id=None):
-    markup = back_markup() - Нет
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    item = types.KeyboardButton("Записаться")
+    markup.add(item)
     with open("user_base.json", "r", encoding="UTF-8") as database:
         data = json.loads(database.read())
         if arguments:
@@ -791,10 +801,10 @@ def mailing(message, arguments=None, user_id=None):
                                      reply_markup=markup)
                 finally:
                     return 0
-            for person in data['users']:
+            for person in data:
                 try:
-                    if person['id'] != message.from_user.id:
-                        sent = bot.send_message(person['id'], message.text, reply_markup=markup)
+                    if person != message.from_user.id:
+                        sent = bot.send_message(person, message.text, reply_markup=markup)
                         bot.register_next_step_handler(sent, feedback, message.text)
                     else:
                         bot.send_message(message.chat.id, "Принято.", reply_markup=markup)
@@ -861,6 +871,22 @@ def mailing(message, arguments=None, user_id=None):
             bot.send_message(message.chat.id, "Неподдерживаемый тип файла", reply_markup=markup)
 
 
+def q_user(message):
+    try:
+        user_id = int(message.text.strip())
+    except ValueError:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item = types.KeyboardButton("/admin")
+        markup.add(item)
+        bot.send_message(admin_id,
+                         "Ошибка: Неверный формат id.\nПроверьте правильность введенных данных и попробуйте снова.",
+                         reply_markup=markup)
+        return 1
+    else:
+        sent = bot.send_message(admin_id, "Какой вопрос Вы хотели бы задать?\n(Отправьте его следующим сообщением)")
+        bot.register_next_step_handler(sent, mailing, arguments=True, user_id=user_id)
+
+
 def feedback(message, question):
     bot.send_message(admin_id,
                      'Ответ на Ваш вопрос "' + question + '" — "' + message.text + '" от:\n(id) ' + str(
@@ -897,7 +923,7 @@ def initialisation(message):
     filename = "user_base.json"
     with open(filename, "r", encoding="UTF-8") as database:
         data = json.loads(database.read())
-        if message.from_user.id not in data:
+        if str(message.from_user.id) not in data:
             data[message.from_user.id] = {"first_name": message.from_user.first_name,
                                           "last_name": message.from_user.last_name,
                                           "username": message.from_user.username}
