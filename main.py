@@ -15,7 +15,7 @@ GREEN_CIRCLE = "🟢"
 RED_CIRCLE = "🔴"
 
 # adm_functions = ['Вакансии', 'Черный список', 'Установить частоту оповещений', 'Рассылка', 'Провести опрос']
-adm_functions = ['Просмотреть записи', 'Отправить сообщение-вопрос', 'Рассылка']
+adm_functions = ['Просмотреть записи', 'Добавить выходной', 'Отправить сообщение-вопрос', 'Рассылка']
 black_list_functions = ['Добавить пользователя в черный список', 'Удалить пользователя из черного списка',
                         'Просмотреть черный список']
 
@@ -57,15 +57,21 @@ def admin_after(message):
     item = types.KeyboardButton("Записаться")
     markup.add(item)
     if message.from_user.id == admin_id:
-        if message.text == "Просмотреть записи":
+        # В использовании message.chat.id вместо admin_id есть свой резон. Например, легче будет переоборудовать под
+        # ...несколько админов, используя то же 'if message.from_user.id in admin_id' рассматривая admin_id как массив.
+        if message.text.lower() == "просмотреть записи":
             sent = bot.send_message(message.chat.id,
                                     "На какой месяц Вы хотели бы просмотреть записи?\nОтвет пришлите числом в формате мм.гг (Например: 12.22)",
                                     reply_markup=types.ReplyKeyboardRemove())
             bot.register_next_step_handler(sent, check_records)
-        elif message.text == "Рассылка":
+        elif message.text.lower() == "рассылка":
             sent = bot.send_message(message.chat.id, "Какое сообщение Вы хотите разослать?",
                                     reply_markup=types.ReplyKeyboardRemove())
             bot.register_next_step_handler(sent, mailing)
+        elif message.text.lower() == "добавить выходной":
+            sent = bot.send_message(message.chat.id, 'Отправьте дату желаемого выходного в формате "дд.мм.гггг" без нулей и четырьмя цифрами года. Т.е., например: "2.12.2022", а не "02.12.22"',
+                                    reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(sent, add_holiday)
         # elif message.text == 'Черный список':
         #     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         #     for function in black_list_functions:
@@ -82,7 +88,7 @@ def admin_after(message):
         #     black_list_handler(message, 1)
         # elif message.text == black_list_functions[2]:
         #     black_list_handler(message, 2)
-        elif message.text == 'Отправить сообщение-вопрос':
+        elif message.text.lower() == 'отправить сообщение-вопрос':
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             item1 = types.KeyboardButton("Всем")
             item2 = types.KeyboardButton("Выбрать пользователя")
@@ -95,7 +101,7 @@ def admin_after(message):
             sent = bot.send_message(message.chat.id, "Опрос на какую тему Вы хотите провести?",
                                     reply_markup=types.ReplyKeyboardRemove())
             bot.register_next_step_handler(sent, mailing, arguments=True)
-        elif message.text == 'Выбрать пользователя':
+        elif message.text.lower() == 'выбрать пользователя':
             new_message = ""
             with open("user_base.json", "r", encoding="UTF-8") as database:
                 data = json.loads(database.read())
@@ -202,10 +208,7 @@ def create_calendar(month_diff=0):
 
         for day in range(days):
             formatted_date = str(day + 1) + "." + str(month) + "." + str(year)
-            value = "0" \
-                if day + 1 <= int(red_border["d"][0]) and month == int(red_border["m"]) \
-                   or month < int(red_border["m"]) \
-                else formatted_date
+            value = "0" if day + 1 <= int(red_border["d"][0]) and month <= int(red_border["m"]) else formatted_date
             if month_diff < 0:
                 color_circle = RED_CIRCLE
             else:
@@ -374,7 +377,7 @@ def choose_type(message):
         bot.register_next_step_handler(sent, choose_addr)
     elif message.text.lower() == "онлайн":
         booking['type'] = message.text
-        booking['addr'] = None
+        booking['addr'] = []
         bot.send_message(message.chat.id, "Принято.")
 
         sent = bot.send_message(message.chat.id, "Отправьте свой логин в Instagram для связи",
@@ -469,15 +472,29 @@ def date_callback_handler(call):
     elif call.data == "warning_change_date":
         inline_keyboard = telebot.types.InlineKeyboardMarkup()
         inline_keyboard.row(types.InlineKeyboardButton("Изменить дату", callback_data="change_date"),
-                            types.InlineKeyboardButton("Отменить запись", callback_data="cancel"))
+                            types.InlineKeyboardButton("Отменить запись", callback_data="warning_cancel"))
         bot.edit_message_reply_markup(
             call.message.chat.id,
             call.message.message_id,
             reply_markup=inline_keyboard)
         bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
                                   text="Внимание! Это автоматически отменит Вашу предыдущую запись")
+    elif call.data == "warning_cancel":
+        inline_keyboard = telebot.types.InlineKeyboardMarkup()
+        inline_keyboard.row(types.InlineKeyboardButton("Изменить дату", callback_data="warning_change_date"),
+                            types.InlineKeyboardButton("Отменить запись", callback_data="cancel"))
+        bot.edit_message_reply_markup(
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=inline_keyboard)
+        bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                  text="Внимание! Это отменит Вашу запись. Нажмите снова, если хотите продолжить")
     elif call.data == "change_date":
         # Изменяет сообщение на выбор даты и дальше идет по порядку
+        if booking == {"type": None, "category": None, "contact": None, "addr": []}:
+            bot.answer_callback_query(callback_query_id=call.id, show_alert=True,
+                                      text='Сессия была прервана и функция изменения даты для этой записи недоступна. Можете воспользоваться кнопкой "Отменить запись" и записаться заново вручную')
+            return -1
         delete_record("datebase.json", call)
         inline_keyboard = create_calendar()
         bot.edit_message_text(
@@ -488,10 +505,6 @@ def date_callback_handler(call):
         )
     elif call.data == "cancel":
         delete_record("datebase.json", call)
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        item = types.KeyboardButton("Записаться")
-        markup.add(item)
-        bot.send_message(call.message.chat.id, "Ваша запись успешно отменена.", reply_markup=markup)
     # При нажатии кнопки "<" или ">"
     elif "move" in call.data:
         month_diff = int(call.data[5:])
@@ -571,7 +584,8 @@ def date_callback_handler(call):
                     next_half_hour = this_hour + ":30" if this_minutes == "00" else str(int(this_hour) + 1) + ":00"
                     # Проверка, не является ли выбранная дата верхней границей по времени
                     if next_half_hour != str(config.day_border[1][0]) + ":" + str(config.day_border[1][1]) \
-                            and this_hour + ":" + this_minutes != str(config.day_border[1][0]) + ":" + str(config.day_border[1][1]):
+                            and this_hour + ":" + this_minutes != str(config.day_border[1][0]) + ":" + str(
+                        config.day_border[1][1]):
                         # Проверка, занят ли последующий получасовой интервал
                         if data[booking["date"]][next_half_hour]:
                             if data[booking["date"]][next_half_hour][1]['type'].lower() == "онлайн":
@@ -591,7 +605,7 @@ def date_callback_handler(call):
                 # Сделать подтверждение ->
                 inline_keyboard = telebot.types.InlineKeyboardMarkup()
                 inline_keyboard.row(types.InlineKeyboardButton("Изменить дату", callback_data="warning_change_date"),
-                                    types.InlineKeyboardButton("Отменить запись", callback_data="cancel"))
+                                    types.InlineKeyboardButton("Отменить запись", callback_data="warning_cancel"))
 
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
                 item = types.KeyboardButton("Записаться")
@@ -600,10 +614,10 @@ def date_callback_handler(call):
                 type_category_msg = booking['type'].capitalize() + " " + booking['category'] if \
                     booking['category'].lower() != "тейпирование" else "Тейпирование"
                 s_msg = 'Пользователь ' + call.from_user.first_name + ' записался на\n-> "' \
-                                 + type_category_msg + '",\n-> ' + booking['date'] \
-                                 + '\n-> Время: ' + call.data[5:] + '\n-> Instagram: ' + booking['contact']
+                        + type_category_msg + '",\n-> ' + booking['date'] \
+                        + '\n-> Время: ' + call.data[5:] + '\n-> Instagram: ' + booking['contact']
                 # addr_msg = '\n-> Адрес: ' + booking['addr'] if booking['addr'] is not None else ""
-                if len(booking['addr']) > 0:
+                if booking['addr']:
                     if booking['addr'][0] == 'addr':
                         s_msg += '\n-> Адрес: ' + booking['addr'][1]
                         bot.send_message(admin_id, s_msg)
@@ -666,8 +680,8 @@ def delete_record(filename, call):
                 booking['category'].lower() != "тейпирование" else "Тейпирование"
             s_msg = 'Пользователь ' + call.from_user.first_name + ' отменил свою запись на\n-> "' \
                     + type_category_msg + '",\n-> ' + booking['date'] \
-                    + '\n-> Время: ' + call.data[5:] + '\n-> Instagram: ' + booking['contact']
-            if len(booking['addr']) > 0:
+                    + '\n-> Instagram: ' + booking['contact']
+            if booking['addr']:
                 if booking['addr'][0] == 'addr':
                     s_msg += '\n-> Адрес: ' + booking['addr'][1]
                     bot.send_message(admin_id, s_msg)
@@ -676,24 +690,29 @@ def delete_record(filename, call):
                     bot.send_location(admin_id, booking['addr'][1], booking['addr'][2])
             else:
                 bot.send_message(admin_id, s_msg)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            item = types.KeyboardButton("Записаться")
+            markup.add(item)
+            bot.send_message(call.message.chat.id, "Ваша запись успешно отменена.", reply_markup=markup)
         except KeyError:
-            records = {}
+            records = []
             for date in data:
                 for timeshift in data[date]:
                     if data[date][timeshift]:
                         if "is_start_time" in data[date][timeshift][1]:
                             if data[date][timeshift][0] == call.message.chat.id:
-                                records[date] = [timeshift, data[date][timeshift][1]]
+                                records.append([date, timeshift, data[date][timeshift][1]])
             if records is None:
                 bot.answer_callback_query(call.id, "Ничего не найдено. Вы ни на что не записаны", show_alert=True)
             else:
                 s_msg = ""
                 for record in records:
-                    type_category_msg = records[record][1]['type'].capitalize() + " " + records[record][1]['category'] if \
-                        records[record][1]['category'].lower() != "тейпирование" else "Тейпирование"
-                    s_msg += "--> " + record + " " + records[record][0] + "\n" + type_category_msg + "\n\n"
+                    type_category_msg = record[2]['type'].capitalize() + " " + record[2]['category'] if \
+                        record[2]['category'].lower() != "тейпирование" else "Тейпирование"
+                    s_msg += "--> " + record[0] + " " + record[1] + "\n" + type_category_msg + "\n\n"
                 bot.send_message(call.message.chat.id, s_msg)
-                sent = bot.send_message(call.message.chat.id, "Выберите запись, которую Вы собираетесь отменить. Скопируйте и отправьте мне дату из сообщения, так как там, число с точками после стрелочки вначале.\nВнимание! Это удалит все записи на выбранный день, если у Вас их несколько.")
+                sent = bot.send_message(call.message.chat.id,
+                                        "Выберите запись, которую Вы собираетесь отменить. Скопируйте и отправьте мне дату из сообщения, так как там, число с точками после стрелочки вначале.\nВнимание! Это удалит все записи на выбранный день, если у Вас их несколько.")
                 bot.register_next_step_handler(sent, delete_chosen_record)
 
 
@@ -706,7 +725,7 @@ def delete_chosen_record(message):
         with open(filename, "r", encoding="UTF-8") as datebase:
             data = json.loads(datebase.read())
             for time_taken in data[date]:
-                if time_taken:
+                if data[date][time_taken]:
                     if data[date][time_taken][0] == message.chat.id:
                         if "is_start_time" in data[date][time_taken][1]:
                             records_deleted.append(date + " " + time_taken)
@@ -716,6 +735,11 @@ def delete_chosen_record(message):
             for record in records_deleted:
                 s_msg += "\n-> " + record
             bot.send_message(admin_id, s_msg)
+
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            item = types.KeyboardButton("Записаться")
+            markup.add(item)
+            bot.send_message(message.chat.id, "Ваша запись успешно отменена.", reply_markup=markup)
     except (ValueError, KeyError):
         bot.send_message(message.chat.id, "Ошибка. Неверный формат указанной даты")
 
@@ -835,23 +859,24 @@ def check_records(message):
         for date in data:
             if date[-2:] == year:
                 dot_pos = date.find('.') + 1
-                d_month = date[dot_pos:dot_pos+2]
+                d_month = date[dot_pos:dot_pos + 2]
                 d_month = d_month[0] if d_month[-1] == '.' else d_month
                 if int(d_month) == int(month):
                     if data[date] != cliche:
                         for timeshift in data[date]:
-                            if len(data[date][timeshift]) > 0:
+                            if data[date][timeshift]:
                                 if "is_start_time" in data[date][timeshift][1]:
                                     type_category_msg = data[date][timeshift][1]['type'].capitalize() + " " + \
                                                         data[date][timeshift][1]['category'] if \
-                                        data[date][timeshift][1]['category'].lower() != "тейпирование" else "Тейпирование"
+                                        data[date][timeshift][1][
+                                            'category'].lower() != "тейпирование" else "Тейпирование"
 
                                     message_s += '--> ' + date + '\nВремя: ' + timeshift + '\n' + type_category_msg + \
                                                  '\nКонтакт: ' + data[date][timeshift][1]['contact']
 
-                                    if len(data[date][timeshift][1]['addr']) > 0:
+                                    if data[date][timeshift][1]['addr']:
                                         if data[date][timeshift][1]['addr'][0] == 'addr':
-                                            message_s += '\n-> Адрес: ' + data[date][timeshift][1]['addr'][1] + '\n\n'
+                                            message_s += '\nАдрес: ' + data[date][timeshift][1]['addr'][1] + '\n\n'
                                         elif data[date][timeshift][1]['addr'][0] == 'location':
                                             bot.send_message(message.chat.id, message_s)
                                             bot.send_location(message.chat.id, data[date][timeshift][1]['addr'][1],
@@ -866,6 +891,69 @@ def check_records(message):
         elif message_s == "":
             return 0
         bot.send_message(message.chat.id, message_s, reply_markup=types.ReplyKeyboardRemove())
+
+
+def add_holiday(message):
+    filename = "datebase.json"
+    date = message.text.strip()
+    available = True
+    canceled = []
+    with open(filename, "r", encoding="UTF-8") as datebase:
+        data = json.loads(datebase.read())
+        if date in data:
+            for timeshift in data[date]:
+                if data[date][timeshift]:
+                    available = False
+                    if data[date][timeshift][0] not in canceled:
+                        canceled.append(data[date][timeshift][0])
+            if available:
+                data[date] = {"all-time": ["admin", {"category": "выходной"}]}
+                write_database(data, filename)
+                bot.send_message(admin_id, "Выходной на " + date + " успешно добавлен!")
+            else:
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+                item1 = types.KeyboardButton("Да")
+                item2 = types.KeyboardButton("Нет")
+                markup.add(item1, item2)
+                sent = bot.send_message(admin_id, "На " + date +
+                                        " уже есть некоторые записи. Хотите отменить их и все равно назначить выходной?",
+                                        reply_markup=markup)
+                bot.register_next_step_handler(sent, take_decision_holiday, [canceled, date, data])
+        else:
+            data[date] = {"all-time": ["admin", {"category": "выходной"}]}
+            write_database(data, filename)
+            bot.send_message(admin_id, "Выходной на " + date + " успешно добавлен!")
+
+
+def take_decision_holiday(message, args):
+    # args = [canceled, date]
+    canceled = args[0]
+    date = args[1]
+    data = args[2]
+    if message.text.lower() == "да":
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item = types.KeyboardButton("Записаться")
+        markup.add(item)
+
+        data[date] = {"all-time": ["admin", {"category": "выходной"}]}
+        write_database(data, "datebase.json")
+        bot.send_message(admin_id, "Выходной на " + date + "успешно добавлен!")
+
+        for client in canceled:
+            bot.send_message(client, "Ваша запись на " + date + " была отменена.\nПриносим извинения за неудобства.",
+                             reply_markup=markup)
+    elif message.text.lower() == "нет":
+        bot.send_message(admin_id, "Принято.", reply_markup=types.ReplyKeyboardRemove())
+    else:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item1 = types.KeyboardButton("Да")
+        item2 = types.KeyboardButton("Нет")
+        markup.add(item1, item2)
+        bot.send_message(admin_id, 'Неверный формат ответа. Отправьте сообщение, содержащее только "Да" или "Нет".')
+        sent = bot.send_message(admin_id, "На " + date +
+                                " уже есть некоторые записи. Хотите отменить их и все равно назначить выходной?",
+                                reply_markup=markup)
+        bot.register_next_step_handler(sent, take_decision_holiday, [canceled, date, data])
 
 
 def mailing(message, arguments=None, user_id=None):
